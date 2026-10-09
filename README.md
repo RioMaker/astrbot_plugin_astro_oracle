@@ -8,13 +8,14 @@ AstrBot 部分仍是 `0.1.0` 说明骨架，提供帮助/状态/开发路线查�
 
 ## 启动本地联合调试
 
-在 Windows 上双击本目录的 `start_local.cmd`。启动器使用本项目的 `.venv`，检查历表，等待本地服务健康检查通过后打开浏览器，无需手动激活环境。
+直接运行本目录的 `launch_local.py`，或在 Windows 已配置 Python 文件关联时双击它。使用系统 Python 启动会自动切换到本项目 `.venv`，检查历表，等待本地服务健康检查通过后打开浏览器，无需手动激活环境。
 
 默认地址：[http://127.0.0.1:8768](http://127.0.0.1:8768)。在启动窗口按 `Ctrl+C` 可结束本次服务。更换端口或禁用自动打开浏览器：
 
 ```powershell
-.\start_local.cmd --port 8778
-.\start_local.cmd --no-browser
+python launch_local.py
+python launch_local.py --port 8778
+python launch_local.py --no-browser
 ```
 
 当前工作区已准备好 `.venv` 和历表。新克隆的机器需在本插件目录执行一次：
@@ -23,7 +24,7 @@ AstrBot 部分仍是 `0.1.0` 说明骨架，提供帮助/状态/开发路线查�
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 .\.venv\Scripts\python.exe -X utf8 -m local_core.resources
-.\start_local.cmd
+python launch_local.py
 ```
 
 历表从 [NASA/JPL 官方地址](https://naif.jpl.nasa.gov/pub/naif/generic_kernels/spk/planets/de440s.bsp) 下载，约 32 MB。`data/ephemeris.json` 记录实际来源、大小、覆盖范围和 SHA-256；查询时不隐式下载数据，也不自动保存输入资料。
@@ -79,8 +80,8 @@ astrbot_plugin_astro_oracle/
 ├── _conf_schema.json       WebUI 配置定义
 ├── local_core/             时间解析、真实历表计算与本地 HTTP 服务
 ├── web/                    本地浏览器表单与结果表格
-├── launch_local.py         等待就绪后打开浏览器的启动器
-├── start_local.cmd         使用项目 .venv 的 Windows 入口
+├── launch_local.py         自动切换 .venv，等待就绪后打开浏览器的 Python 入口
+├── start_local.cmd         可选 Windows 快捷入口
 ├── requirements.txt        本地核心运行依赖
 ├── requirements-dev.txt    测试和浏览器验证依赖
 ├── pyproject.toml          Ruff 检查与格式配置

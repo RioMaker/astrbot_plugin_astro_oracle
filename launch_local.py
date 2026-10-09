@@ -1,4 +1,4 @@
-"""使用项目 .venv 启动服务，确认健康检查后打开浏览器。"""
+"""直接以 Python 启动，自动使用项目 .venv，就绪后打开浏览器。"""
 
 import argparse
 import asyncio
@@ -23,8 +23,11 @@ def main() -> None:
     args = parser.parse_args()
     if not PYTHON.exists():
         raise SystemExit("缺少本项目 .venv，请按 README 的准备步骤安装本地依赖。")
-    if Path(sys.executable).resolve() != PYTHON.resolve():
-        raise SystemExit("请通过 start_local.cmd 启动，或使用本项目 .venv 的 Python。")
+    if Path(sys.prefix).resolve() != (ROOT / ".venv").resolve():
+        os.execv(
+            str(PYTHON),
+            [str(PYTHON), "-X", "utf8", str(Path(__file__).resolve()), *sys.argv[1:]],
+        )
     from local_core.engine import PlanetEngine
     from local_core.resources import prepare
     from local_core.server import create_server
