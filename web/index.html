@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>星轨神谕 · 本地行星状态</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+<main>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark" aria-hidden="true">✦</span><span>星轨神谕<small>ASTRO ORACLE</small></span></div>
+    <span class="badge" id="model-status">正在读取本地历表…</span>
+  </header>
+  <section class="intro">
+    <p class="eyebrow">本地联合调试 · 第一阶段</p>
+    <h1>指定日期的<span>行星状态</span></h1>
+    <p>从日期到具体时刻，查看真实历表计算的行星位置、速度，以及时段内的变化。</p>
+  </section>
+  <section class="panel input-panel" aria-label="日期时间输入">
+    <form id="state-form">
+      <div class="form-grid">
+        <label class="time-field">日期 / 时刻
+          <input id="input-time" name="time" type="text" value="2026-10-09" placeholder="2026-10-09 12:34:56" required autocomplete="off" spellcheck="false">
+        </label>
+        <label>时区
+          <input id="timezone" name="timezone" type="text" value="Asia/Shanghai" list="timezone-options" required spellcheck="false">
+          <datalist id="timezone-options"><option value="Asia/Shanghai"><option value="UTC"><option value="UTC+08:00"><option value="America/New_York"></datalist>
+        </label>
+        <label>时段采样数
+          <input id="samples" type="number" value="7" min="2" max="25" step="1">
+        </label>
+        <button id="calculate" class="primary" type="submit">计算行星状态 <span aria-hidden="true">↗</span></button>
+      </div>
+      <div class="precision-row">
+        <span id="precision-hint">日精度 · 计算全天多个采样时刻</span>
+        <div class="presets" aria-label="输入精度示例">
+          <button type="button" data-preset="day">日</button>
+          <button type="button" data-preset="hour">时</button>
+          <button type="button" data-preset="minute">分</button>
+          <button type="button" data-preset="second">秒</button>
+        </div>
+      </div>
+    </form>
+    <p class="subtle" id="coverage">历表覆盖范围载入中。</p>
+    <p id="error" role="alert" hidden></p>
+  </section>
+  <p class="query-status" id="query-status" aria-live="polite">输入日期后开始计算。缺失的时、分、秒会保留为时间范围。</p>
+
+  <section id="results" hidden>
+    <div class="result-heading">
+      <div><p class="eyebrow">计算结果</p><h2 id="window-title"></h2><p class="subtle" id="window-range"></p></div>
+      <button id="export-json" type="button" class="secondary">导出结果 JSON</button>
+    </div>
+    <section class="panel result-panel">
+      <div class="sample-heading"><h3>采样时刻</h3><span class="subtle" id="sample-note"></span></div>
+      <div id="sample-tabs" class="sample-tabs" role="group" aria-label="选择采样时刻"></div>
+      <div class="selected-time"><span id="selected-time"></span><span class="subtle" id="selected-utc"></span></div>
+      <div class="table-scroll">
+        <table id="planet-table">
+          <thead><tr><th>行星 / 目标</th><th>日心距离 <small>AU</small></th><th>日心速度 <small>km/s</small></th><th>地心视黄经 <small>°</small></th><th>地心视黄纬 <small>°</small></th><th>地心距离 <small>AU</small></th><th>详情</th></tr></thead>
+          <tbody id="planet-rows"></tbody>
+        </table>
+      </div>
+      <p class="table-note">日心：太阳中心、ICRF 固定轴、几何状态。地心：地球中心视位置、日期真黄道与真春分点。AU 为天文单位。</p>
+    </section>
+
+    <section class="panel detail-panel">
+      <div class="sample-heading"><h3 id="detail-title">行星详情</h3><label class="inline-label">选择行星 <select id="planet-select"></select></label></div>
+      <p class="subtle" id="target-note"></p>
+      <div class="vector-grid">
+        <div><p class="eyebrow">日心位置 · ICRF / AU</p><dl id="position-vector"></dl></div>
+        <div><p class="eyebrow">日心速度 · ICRF / km/s</p><dl id="velocity-vector"></dl></div>
+        <div><p class="eyebrow">地心视赤道坐标 · 日期真赤道 / °</p><dl id="equatorial"></dl></div>
+      </div>
+      <h3 class="trend-title" id="trend-title"></h3>
+      <div class="table-scroll trend-scroll"><table><thead><tr><th>本地采样时刻</th><th>视黄经 °</th><th>视黄纬 °</th><th>地心距离 AU</th><th>日心距离 AU</th><th>日心速度 km/s</th></tr></thead><tbody id="trend-rows"></tbody></table></div>
+      <p class="table-note" id="resolution-note"></p>
+    </section>
+
+    <details class="panel provenance-panel"><summary>计算定义与数据溯源</summary><div id="provenance"></div><pre id="provenance-json"></pre></details>
+  </section>
+  <footer>JPL DE440s · 本地计算 · 输入资料仅用于当前请求。秒级输入分辨率与天文模型精度分别记录。</footer>
+</main>
+</body>
+</html>
