@@ -22,6 +22,7 @@
 
 - 提交前执行 Ruff 格式化及检查、Python 语法检查，以及本次行为所需的冒烟或功能验证。
 - 本地核心验收见 [本地核心说明](docs/LOCAL_CORE.md) 和 [验证记录](docs/VALIDATION.md)。本地接口测试与官方参考核对使用真实历表；需要资源时先运行 `python -m local_core.resources`，不能用虚构坐标替代。
+- 双半球星图定义见 [星图说明](docs/SKY_CHART.md)，数据许可见 [第三方资料说明](THIRD_PARTY_NOTICES.md)。保持同一采样时刻、明确天顶/天底与东西方向、按真实高度裁剪，并在真实数据独立预览后接入界面。星等未知时不要编造值；显示映射与模型精度分别说明。
 - 区分静态检查、模拟 AstrBot API 的本地冒烟、真实 AstrBot/OneBot 加载和天文精度验证，不混写为同一验收结果。
 - 只暂存本次任务文件，创建中文 Conventional Commit，正文记录原因与验证结果。
 - 在本工作区中，插件提交后从实际 HEAD、分支、origin 与 `metadata.yaml` 读取状态，更新根目录 `plugins.json` 的本插件条目，并在根仓库单独提交。缺少 origin 时 URL 写 `null`。

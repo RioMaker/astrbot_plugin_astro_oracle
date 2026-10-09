@@ -6,6 +6,8 @@
   <title>星轨神谕 · 本地行星状态</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/style.css">
+  <script src="/sky.js" defer></script>
+  <script src="/sky-panel.js" defer></script>
   <script src="/app.js" defer></script>
 </head>
 <body>
@@ -15,9 +17,9 @@
     <span class="badge" id="model-status">正在读取本地历表…</span>
   </header>
   <section class="intro">
-    <p class="eyebrow">本地联合调试 · 第一阶段</p>
-    <h1>指定日期的<span>行星状态</span></h1>
-    <p>从日期到具体时刻，查看真实历表计算的行星位置、速度，以及时段内的变化。</p>
+    <p class="eyebrow">本地联合调试 · 出生地观测视角</p>
+    <h1>此时此地的<span>双半球星图</span></h1>
+    <p>图心分别对应天顶与天底，查看地平线以上和地球遮挡方向的行星、恒星与星座。</p>
   </section>
   <section class="panel input-panel" aria-label="日期时间输入">
     <form id="state-form">
@@ -32,7 +34,19 @@
         <label>时段采样数
           <input id="samples" type="number" value="7" min="2" max="25" step="1">
         </label>
-        <button id="calculate" class="primary" type="submit">计算行星状态 <span aria-hidden="true">↗</span></button>
+        <button id="calculate" class="primary" type="submit">生成星图与状态 <span aria-hidden="true">↗</span></button>
+      </div>
+      <div class="place-input">
+        <div class="place-search"><label>搜索出生地城市 / 乡镇<input id="place-query" type="text" placeholder="上海、杭州、New York" autocomplete="off"></label><button id="search-places" type="button">搜索地点</button></div>
+        <p id="place-search-status" class="subtle">本地 GeoNames 检索；选择地点后可校正坐标和时区。</p>
+        <div id="place-results" class="place-results"></div>
+        <div class="site-grid">
+          <label>地点名称 / 备注<input id="place-label" type="text" value="" maxlength="120"></label>
+          <label>纬度 °<input id="latitude" type="number" min="-90" max="90" step="any" required></label>
+          <label>经度 °<input id="longitude" type="number" min="-180" max="180" step="any" required></label>
+          <label>观测点高度 m<input id="elevation" type="number" min="-500" max="9000" step="any" value="0" required></label>
+        </div>
+        <p class="subtle">坐标采用 WGS84，北纬 / 东经为正值。地点库提供中心坐标，高度默认 0 m，可按实际位置修正。<a href="https://www.geonames.org/" target="_blank" rel="noopener">GeoNames · CC BY 4.0</a></p>
       </div>
       <div class="precision-row">
         <span id="precision-hint">日精度 · 计算全天多个采样时刻</span>
@@ -54,6 +68,27 @@
       <div><p class="eyebrow">计算结果</p><h2 id="window-title"></h2><p class="subtle" id="window-range"></p></div>
       <button id="export-json" type="button" class="secondary">导出结果 JSON</button>
     </div>
+    <section class="panel sky-panel" id="sky-panel">
+      <div class="sky-heading"><div><h3>出生地的两半天空</h3><p id="sky-stamp" class="subtle"></p></div><div class="sky-export"><button id="export-sky-png" type="button" class="secondary" disabled>导出双图 PNG</button><button id="export-sky-json" type="button" class="secondary" disabled>星图 JSON</button></div></div>
+      <div class="sky-controls">
+        <label><input id="show-lines" type="checkbox" checked>星座连线</label>
+        <label><input id="show-star-names" type="checkbox" checked>知名恒星名称</label>
+        <label><input id="show-constellation-names" type="checkbox" checked>星座名称</label>
+        <label class="mag-control">恒星星等上限 <input id="mag-limit" type="range" min="-2" max="8" step=".5" value="6"><output id="mag-value">6.0</output></label>
+      </div>
+      <p id="sky-status" class="sky-status" aria-live="polite">输入时间和出生地后生成双半球星图。</p>
+      <div id="sky-empty" class="sky-empty">正在准备该采样时刻的两半天空…</div>
+      <div id="sky-plots" class="sky-plots" hidden>
+        <article class="sky-card"><div><h3>上半球 · 可观测方向</h3><span id="upper-counts"></span></div><p class="subtle">图心天顶 · 圆周地平线 · 东在左侧</p><canvas id="sky-upper" aria-label="出生地地平线以上的全天星图"></canvas><p id="upper-planets" class="planet-summary"></p></article>
+        <article class="sky-card lower"><div><h3>下半球 · 暗面</h3><span id="lower-counts"></span></div><p class="subtle">图心天底 · 地球遮挡方向 · 东在右侧</p><canvas id="sky-lower" aria-label="出生地地平线以下、被地球遮挡的星图"></canvas><p id="lower-planets" class="planet-summary"></p></article>
+      </div>
+      <p id="sky-detail" class="sky-detail" aria-live="polite">移动指针或点击星点，查看名称、星等、方位角和视高度。</p>
+      <p id="sky-visibility-note" class="table-note"></p>
+      <p class="table-note">圆环标记行星，点的大小与亮度依据视星等映射；星等越小越亮。太阳符号仅标注方位。恒星亮度取星表值，行星亮度为模型估计。</p>
+      <p id="sky-resource-info" class="table-note"></p>
+      <p class="table-note">星表：ESA Hipparcos / CDS I/239。星座图形与通用星名：<a href="https://github.com/Stellarium/stellarium/tree/master/skycultures/modern_st" target="_blank" rel="noopener">Stellarium · Sky & Telescope</a>，<a href="https://creativecommons.org/licenses/by-sa/2.0/" target="_blank" rel="noopener">CC BY-SA 2.0</a>。连线为辅助示意，部分缺少适用星表记录的端点略去。</p>
+      <details><summary>星图定义与数据溯源</summary><pre id="sky-provenance"></pre></details>
+    </section>
     <section class="panel result-panel">
       <div class="sample-heading"><h3>采样时刻</h3><span class="subtle" id="sample-note"></span></div>
       <div id="sample-tabs" class="sample-tabs" role="group" aria-label="选择采样时刻"></div>

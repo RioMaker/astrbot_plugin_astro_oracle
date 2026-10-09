@@ -4,6 +4,8 @@
 
 **已实现独立本地计算原型 `0.1.0`**：八大行星、日/时/分/秒输入分辨率、时区、时间段采样、网页表单与结果表格、三维位置和速度、地心视坐标、JSON 导出与数据溯源。使用真实 JPL DE440s，资源准备后查询可离线执行。
 
+现在支持出生地观测视角的双半球星图：本地城市/乡镇搜索与经纬度校正、上半球与地球遮挡下半球、真实恒星星表、行星视星等估计、可选星座连线、名称提示和双图 PNG/JSON 导出。
+
 AstrBot 部分仍是 `0.1.0` 说明骨架，提供帮助/状态/开发路线查询；尚未把计算核心连接到插件指令。
 
 ## 启动本地联合调试
@@ -18,7 +20,7 @@ python launch_local.py --port 8778
 python launch_local.py --no-browser
 ```
 
-当前工作区已准备好 `.venv` 和历表。新克隆的机器需在本插件目录执行一次：
+当前工作区已准备好 `.venv`、历表和星图资源。新克隆的机器需在本插件目录执行一次：
 
 ```powershell
 python -m venv .venv
@@ -28,6 +30,22 @@ python launch_local.py
 ```
 
 历表从 [NASA/JPL 官方地址](https://naif.jpl.nasa.gov/pub/naif/generic_kernels/spk/planets/de440s.bsp) 下载，约 32 MB。`data/ephemeris.json` 记录实际来源、大小、覆盖范围和 SHA-256；查询时不隐式下载数据，也不自动保存输入资料。
+
+首次资源准备还会下载 Hipparcos 原始星表（约 53 MB）、Stellarium 连线/星名数据和 GeoNames 城市库（压缩约 11 MB）。启动器等待资源校验和服务就绪后打开浏览器。原始及编译数据留在被忽略的 `data/sky/`，来源与 SHA-256 见其 `manifest.json`。
+
+## 出生地双半球星图
+
+1. 搜索城市/乡镇，例如「上海」「杭州」或 `New York`，选择结果。
+2. 校正经纬度、观测点高度和出生时间所用时区。搜索结果为地点中心，适用更精确地点时可直接修改坐标。
+3. 输入日期或时刻，点击「生成星图与状态」。日/时/分输入继续保留采样范围，切换采样时刻会更新两张星图。
+4. 上图以天顶为中心，展示地平线以上；下图以天底为中心，展示按理想地平线模型划分的地球遮挡方向。两图同一时刻、北朝上，上图东在左，下图东在右。
+5. 星座连线、知名恒星名称和星座名称可以开关。调整恒星星等上限可改变星点数量，点亮度与大小按视星等映射。行星名称保持显示；指向或点击星点可看角度与星等。
+
+图中计算从地球观测的七个行星目标，地球本身作为观测参考；太阳符号标示方位。行星位置来自 JPL，恒星来自 Hipparcos 1997，连线来自 Stellarium Sky & Telescope 图形。默认显示星等 ≤6 的恒星，编译库包含星等 ≤8 或连线所需的 41,394 条适用恒星记录；地点库实际包含 171,174 条记录。
+
+星图表示无折射的站心视方向，按理想水平地平线划分上下半球。肉眼可见性受日光、地形、建筑、天气与仪器影响。恒星使用星表 V 星等，行星使用光度模型估计；可变星当天亮度没有重建，显示需要曝光映射。定义、适用范围与接口见 [星图说明](docs/SKY_CHART.md)。
+
+星座图形数据及其改编采用 CC BY-SA 2.0，导出图保留来源说明；详见 [第三方资料说明](THIRD_PARTY_NOTICES.md)。
 
 ## 日期与时间分辨率
 
@@ -78,8 +96,8 @@ astrbot_plugin_astro_oracle/
 ├── main.py                 AstrBot 指令入口
 ├── metadata.yaml           插件元数据
 ├── _conf_schema.json       WebUI 配置定义
-├── local_core/             时间解析、真实历表计算与本地 HTTP 服务
-├── web/                    本地浏览器表单与结果表格
+├── local_core/             时间、站心计算、离线地点与真实资源管理
+├── web/                    浏览器表单、结果表格与双半球绘图
 ├── launch_local.py         自动切换 .venv，等待就绪后打开浏览器的 Python 入口
 ├── start_local.cmd         可选 Windows 快捷入口
 ├── requirements.txt        本地核心运行依赖
@@ -92,7 +110,7 @@ astrbot_plugin_astro_oracle/
 └── docs/                   核心说明、验证记录和阶段规划
 ```
 
-恒星、特征提取、研究评估与 AstrBot 接入在联合调试后按实际需要开展，见 [开发路线](docs/ROADMAP.md)。
+恒星星图已接入本地原型。特征提取、研究评估与 AstrBot 接入在联合调试后按实际需要开展，见 [开发路线](docs/ROADMAP.md)。
 
 ## 本地验证
 
@@ -104,7 +122,9 @@ uvx ruff format --check .
 .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
 .\.venv\Scripts\python.exe -X utf8 -m pytest -q
 .\.venv\Scripts\python.exe -X utf8 -m tools.verify_browser
+.\.venv\Scripts\python.exe -X utf8 -m tools.verify_sky_ui
 .\.venv\Scripts\python.exe -X utf8 -m tools.verify_horizons
+.\.venv\Scripts\python.exe -X utf8 -m tools.verify_topocentric
 ```
 
 浏览器验证工具使用独立无头 Chrome 和任务自有随机端口，结束后关闭浏览器与服务。Horizons 工具逐条查询官方接口并保存响应，再次执行优先使用匹配的真实响应缓存；`--refresh` 可重新获取。原始报告与截图保存在被忽略的 `data/`。

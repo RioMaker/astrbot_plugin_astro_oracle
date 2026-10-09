@@ -78,3 +78,27 @@ def test_local_origin_and_json_requirements(url):
         ).status_code
         == 403
     )
+
+
+def test_sky_and_offline_places_api(url):
+    places = request(url + "/api/places", params={"q": "上海"}).json()["results"]
+    assert places[0]["timezone"] == "Asia/Shanghai"
+    response = request(
+        url + "/api/sky",
+        "POST",
+        json={
+            "epoch": "2026-10-08T16:00:00+00:00",
+            "site": {"latitude": 31.22222, "longitude": 121.45806},
+        },
+    )
+    assert response.status_code == 200
+    assert sum(len(half["planets"]) for half in response.json()["hemispheres"].values()) == 7
+
+
+def test_sky_api_invalid_site_returns_explanation(url):
+    response = request(
+        url + "/api/sky",
+        "POST",
+        json={"epoch": "2026-10-08T16:00:00+00:00", "site": {"latitude": 91, "longitude": 0}},
+    )
+    assert response.status_code == 400 and response.json()["error"]

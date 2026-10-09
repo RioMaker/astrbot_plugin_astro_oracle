@@ -87,11 +87,18 @@ async def prepare(data_dir: Path = DATA_DIR) -> Path:
     return target
 
 
+async def prepare_all(data_dir: Path = DATA_DIR) -> None:
+    from .sky_resources import prepare_sky
+
+    await prepare(data_dir)
+    await prepare_sky(data_dir)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="准备星轨神谕本地计算资源")
     parser.add_argument("--data-dir", type=Path, default=DATA_DIR)
     args = parser.parse_args()
-    asyncio.run(prepare(args.data_dir))
+    asyncio.run(prepare_all(args.data_dir))
 
 
 if __name__ == "__main__":

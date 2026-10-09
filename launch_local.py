@@ -29,10 +29,10 @@ def main() -> None:
             [str(PYTHON), "-X", "utf8", str(Path(__file__).resolve()), *sys.argv[1:]],
         )
     from local_core.engine import PlanetEngine
-    from local_core.resources import prepare
+    from local_core.resources import prepare_all
     from local_core.server import create_server
 
-    asyncio.run(prepare())
+    asyncio.run(prepare_all())
     engine = PlanetEngine()
     try:
         server = create_server(engine, args.port)

@@ -17,6 +17,7 @@ function invalidate() {
   $("results").hidden = true;
   $("error").hidden = true;
   $("query-status").textContent = "输入已更新，请重新计算。";
+  window.SkyPanel?.invalidate();
   updateHint();
 }
 function updateHint() {
@@ -86,6 +87,7 @@ function renderSnapshot() {
     $("planet-rows").append(row);
   });
   renderDetail();
+  window.SkyPanel?.setSnapshot(snapshot,current.window);
 }
 function renderResult() {
   const window = current.window;
@@ -116,6 +118,7 @@ $("state-form").addEventListener("submit",async(event) => {
   event.preventDefault();
   if(pending)return;
   pending=true;
+  window.SkyPanel?.setBusy(true);
   $("calculate").disabled=true;
   $("input-time").disabled=true;
   $("timezone").disabled=true;
@@ -137,6 +140,7 @@ $("state-form").addEventListener("submit",async(event) => {
     $("query-status").textContent="本次计算未完成，请检查输入。";
   } finally {
     pending=false;
+    window.SkyPanel?.setBusy(false);
     $("calculate").disabled=false;
     $("input-time").disabled=false;
     $("timezone").disabled=false;
@@ -163,6 +167,7 @@ async function loadInfo() {
     if(!response.ok)throw new Error("历表信息加载失败。");
     const info=await response.json();
     $("model-status").textContent="JPL DE440s · 本地已就绪";
+    window.SkyPanel?.init(info.sky_chart);
     $("coverage").textContent=`当前文件覆盖（UTC 换算）：${localLabel(info.coverage.start_utc)} 至 ${localLabel(info.coverage.end_utc)}。超出范围会明确提示。`;
   } catch(error) {$("model-status").textContent="本地服务未就绪";$("coverage").textContent=error.message;}
 }
