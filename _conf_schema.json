@@ -1,0 +1,8 @@
+{
+  "enabled": {
+    "type": "bool",
+    "description": "启用星轨神谕指令",
+    "hint": "当前版本提供帮助、状态和开发路线查询。关闭后指令仅提示插件已关闭。",
+    "default": true
+  }
+}

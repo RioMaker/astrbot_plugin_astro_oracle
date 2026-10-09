@@ -1,0 +1,8 @@
+name: astrbot_plugin_astro_oracle
+display_name: 星轨神谕
+desc: 基于真实天体状态开展可验证规律探索；当前为项目骨架，提供帮助、状态和开发路线查询。
+short_desc: 真实天体状态与可验证规律探索（项目骨架）。
+version: "0.1.0"
+author: Rio
+repo: ""
+astrbot_version: ">=4.24.0"
