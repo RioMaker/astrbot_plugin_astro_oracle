@@ -2,7 +2,7 @@ name: astrbot_plugin_astro_oracle
 display_name: 星轨神谕
 desc: 基于真实 JPL 历表与 Hipparcos 恒星目录生成双半球星图，支持指定时间与地点，默认当前北京。
 short_desc: 真实天体双半球星图，支持时间与地点。
-version: "0.1.4"
+version: "0.1.5"
 author: Rio
 repo: ""
 astrbot_version: ">=4.24.0"

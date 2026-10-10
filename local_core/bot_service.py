@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from .bot_commands import resolve_place, resolve_time
 from .engine import PlanetEngine
-from .image_renderer import render_png
+from .image_styles import render_style_png
 from .resources import prepare_all
 from .sky_chart import SkyChartEngine
 
@@ -42,7 +42,7 @@ class ChartService:
         moment, note = resolve_time(request, zone, settings.default_time, now)
         data = sky.compute(moment.isoformat(), site, zone, settings.magnitude_limit)
         data.update(time_note=note, timezone=zone, site_source=source)
-        return render_png(data, settings)
+        return render_style_png(data, settings, "observatory")
 
     async def generate(self, request, settings, now):
         if self._closed:

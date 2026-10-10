@@ -46,7 +46,7 @@ assert len(files)==11
 for name in files:
     assert sha256_file(cache/name)==sha256_file(BUNDLE_DIR/name)
 with Image.open(sys.argv[1]) as image:
-    assert image.size==(1680,1145)
+    assert image.size==(1760,1650)
 print(json.dumps({'resource_file_count':len(files),'http_requests':requests,
     'resource_bytes':sum((BUNDLE_DIR/name).stat().st_size for name in files),
     'result':'Fresh Git checkout bootstrapped an empty framework cache and generated a real PNG'}))

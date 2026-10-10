@@ -37,11 +37,12 @@ def test_real_service_uses_own_resource_directory_and_returns_one_png_without_sa
             first = await service.generate(parse_request("time 2026-10-10"), settings, NOW)
             exact = await service.generate(parse_request("time 2026-10-10 20:30:11"), settings, NOW)
             with Image.open(io.BytesIO(first)) as image:
-                assert image.format == "PNG" and image.size == (1680, 1145)
-            # 补齐值相同，天球圆盘区域一致；顶部输入分辨率说明应不同。
+                assert image.format == "PNG" and image.size == (1760, 1650)
+            # 补齐值相同，天球圆盘区域一致；页脚输入分辨率说明应不同。
             with Image.open(io.BytesIO(first)) as a, Image.open(io.BytesIO(exact)) as b:
                 assert (
-                    a.crop((30, 173, 1660, 945)).tobytes() == b.crop((30, 173, 1660, 945)).tobytes()
+                    a.crop((50, 316, 1710, 1116)).tobytes()
+                    == b.crop((50, 316, 1710, 1116)).tobytes()
                 )
                 assert first != exact
             no_lines = await service.generate(
@@ -133,7 +134,7 @@ def test_user_shorthand_forms_match_actual_full_timestamp_sky_pixels():
 
     def sky_pixels(png):
         with Image.open(io.BytesIO(png)) as image:
-            return image.crop((30, 173, 1660, 945)).tobytes()
+            return image.crop((50, 316, 1710, 1116)).tobytes()
 
     async def exercise():
         try:
