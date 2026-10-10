@@ -6,7 +6,7 @@
 
 现在支持出生地观测视角的双半球星图：本地城市/乡镇搜索与经纬度校正、上半球与地球遮挡下半球、真实恒星星表、行星视星等估计、可选星座连线、名称提示和双图 PNG/JSON 导出。
 
-AstrBot 星图指令已接入同一计算核心，图片由本地 Pillow 生成，不依赖浏览器或远程文转图服务。当前版本为 `0.1.2`，包含核心依赖、首次返回和下载错误提示修复，并提供离线公共资源包；真实 AstrBot/OneBot 回图仍待联合验收。
+AstrBot 星图指令已接入同一计算核心，图片由本地 Pillow 生成，不依赖浏览器或远程文转图服务。当前版本为 `0.1.3`，公共天文数据已随插件保存在本地 Git，运行端优先从随附快照准备资源；真实 AstrBot/OneBot 回图仍待联合验收。
 
 ## 启动本地联合调试
 
@@ -29,9 +29,9 @@ python -m venv .venv
 python launch_local.py
 ```
 
-历表从 [NASA/JPL 官方地址](https://naif.jpl.nasa.gov/pub/naif/generic_kernels/spk/planets/de440s.bsp) 下载，约 32 MB。`data/ephemeris.json` 记录实际来源、大小、覆盖范围和 SHA-256；查询时不隐式下载数据，也不自动保存输入资料。
+历表来自 [NASA/JPL 官方地址](https://naif.jpl.nasa.gov/pub/naif/generic_kernels/spk/planets/de440s.bsp)，约 32 MB。已下载文件及来源记录保存在 `assets/astronomy/`；运行缓存的 `data/ephemeris.json` 记录实际来源、大小、覆盖范围和 SHA-256，输入资料不自动保存。
 
-首次资源准备还会下载 Hipparcos 原始星表（约 53 MB）、Stellarium 连线/星名数据和 GeoNames 城市库（压缩约 11 MB）。启动器等待资源校验和服务就绪后打开浏览器。原始及编译数据留在被忽略的 `data/sky/`，来源与 SHA-256 见其 `manifest.json`。
+Hipparcos 原始星表（约 53 MB）、Stellarium 连线/星名数据、GeoNames 城市库（压缩约 11 MB）和编译数据也已随仓库保存。`assets/astronomy/` 的 11 个数据文件共 `107,904,249` 字节，原始与编译资料、许可说明及实际校验值都已保留。启动器会先从该快照准备 `data/` 缓存并校验，等服务就绪后打开浏览器。依赖安装完成后，首次使用不需要联网下载这些天文资源。
 
 ## 出生地双半球星图
 
@@ -111,11 +111,13 @@ WebUI 配置项：
 | `show_star_names` | `true` | 知名恒星名称开关，行星名称始终显示 |
 | `show_constellation_names` | `true` | 连线开启时的星座名称开关 |
 
-运行配置由 AstrBot 管理。首次星图查询会提示资源准备，在工作线程中下载并校验公共数据；后续查询可离线执行。历表、星表和公共来源记录保存在框架提供的 `data/plugin_data/astrbot_plugin_astro_oracle/`，不依赖插件内的本地调试 `data/`。重载或卸载会等待已提交的计算结束后关闭历表与工作线程。
+运行配置由 AstrBot 管理。首次星图查询会在工作线程中校验 `assets/astronomy/`，将固定快照中的公共文件同步到框架提供的 `data/plugin_data/astrbot_plugin_astro_oracle/`，相同文件直接复用；框架目录中的其他文件不参与同步。全部随附资源就绪时不会请求外部下载站点，不依赖插件内的调试 `data/`。重载或卸载会等待已提交的计算结束后关闭历表与工作线程。
 
-若希望首次聊天前预先准备，在 AstrBot 的 Python 环境中运行本插件资源入口，并用 `--data-dir` 指向上述框架数据目录。数据地址、大小及许可见前文；公开数据下载不会上传用户时间和地点。现有本地调试数据与 AstrBot 数据目录分别管理，代码不自动跨目录复制。
+若希望首次聊天前预先准备，在 AstrBot 的 Python 环境中运行本插件资源入口，并用 `--data-dir` 指向上述框架数据目录。该入口也优先使用随附资源。没有随附快照的旧目录布局才保留原有网络准备流程；随附快照校验失败会明确报错。
 
 ### 下载站点连接超时：导入离线资源
+
+从 `0.1.3` 开始，完整同步本插件 Git 仓库即可带上全部天文数据，无需单独下载或导入资源 ZIP。以下手动导入方法保留用于旧版本与单独资源交接。
 
 如果运行日志在下载 JPL `DE440s` 时出现 `httpx.ConnectTimeout`，程序尚未进入星图计算。下载错误会在群内显示具体资源和原因；未就绪时提示“检查并准备、复用完整文件”，每次重试不会被误称为首次下载。
 
@@ -144,6 +146,7 @@ astrbot_plugin_astro_oracle/
 ├── launch_local.py         自动切换 .venv，等待就绪后打开浏览器的 Python 入口
 ├── start_local.cmd         可选 Windows 快捷入口
 ├── assets/fonts/           独立 AstroSans 字体、许可及来源校验记录
+├── assets/astronomy/       Git 保存的公共历表、原始/编译星表、星座与地点数据
 ├── requirements.txt        计算与星图图片运行依赖
 ├── requirements-dev.txt    测试和浏览器验证依赖
 ├── pyproject.toml          Ruff 检查与格式配置
@@ -171,6 +174,7 @@ uvx ruff format --check .
 .\.venv\Scripts\python.exe -X utf8 -m tools.verify_topocentric
 .\.venv\Scripts\python.exe -X utf8 -m tools.verify_astrbot_contract
 .\.venv\Scripts\python.exe -X utf8 -m tools.verify_astrbot_pipeline
+.\.venv\Scripts\python.exe -X utf8 -m tools.verify_repository_data
 .\.venv\Scripts\python.exe -X utf8 -m tools.preview_bot_chart
 ```
 
@@ -186,6 +190,7 @@ uvx ruff format --check .
 
 ## 版本记录
 
+- `0.1.3`：按用户授权把全部公共下载数据纳入本地 Git；运行时从固定快照准备公共缓存，完整同步后可离线初始化。
 - `0.1.2`：下载失败显示具体资源和原因；去除重复“首次下载”提示；提供可校验的离线公共资源包与禁网实测工具。
 - `0.1.1`：兼容 AstrBot 核心 Pillow 12.x；修复停止事件后 `yield` 准备提示导致首次生成未进入计算的问题；增加官方 `4.28.1` 调度代码回归。
 - `0.1.0`：独立插件、本地行星计算、时间分辨率、浏览器调试入口与真实数据验证；新增 AstrBot 双半球星图入口。本地实现已获用户确认并授权提交，真实消息平台验收仍待进行。

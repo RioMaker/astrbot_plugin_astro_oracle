@@ -2,46 +2,13 @@
 
 import argparse
 import hashlib
-import json
 import zipfile
 from pathlib import Path
 
-from local_core.resources import DATA_DIR, MODEL_FILENAME, inspect_kernel, sha256_file
-from local_core.sky_resources import SOURCES
+from local_core.bundled_resources import resource_files
+from local_core.resources import DATA_DIR, sha256_file
 
 ROOT = Path(__file__).resolve().parents[1]
-
-
-def resource_files(data_dir):
-    ephemeris = json.loads((data_dir / "ephemeris.json").read_text(encoding="utf-8"))
-    model = data_dir / MODEL_FILENAME
-    if ephemeris.get("filename") != MODEL_FILENAME or ephemeris.get("model") != "DE440s":
-        raise ValueError("历表来源记录与预期型号不符。")
-    if sha256_file(model) != ephemeris["sha256"]:
-        raise ValueError("历表 SHA-256 校验失败，未打包。")
-    if inspect_kernel(model) != ephemeris["coverage_tdb_jd"]:
-        raise ValueError("历表覆盖范围与记录不符。")
-    files = [Path(MODEL_FILENAME), Path("ephemeris.json"), Path("sky/manifest.json")]
-    directory = data_dir / "sky"
-    manifest = json.loads((directory / "manifest.json").read_text(encoding="utf-8"))
-    if manifest.get("parser_version") != 1:
-        raise ValueError("星图资源解析版本不匹配。")
-    for key, (filename, url) in SOURCES.items():
-        record = manifest["sources"][key]
-        if record["filename"] != filename or record["url"] != url:
-            raise ValueError("星图来源记录与预期来源不符。")
-        if sha256_file(directory / filename) != record["sha256"]:
-            raise ValueError(f"{key} SHA-256 校验失败，未打包。")
-        files.append(Path("sky") / filename)
-    if manifest["input_hashes"] != {k: v["sha256"] for k, v in manifest["sources"].items()}:
-        raise ValueError("编译数据的来源校验记录不匹配。")
-    for key in ("stars", "cities"):
-        record = manifest["derived"][key]
-        filename = key + ".json.gz"
-        if record["filename"] != filename or sha256_file(directory / filename) != record["sha256"]:
-            raise ValueError(f"{key} 编译数据校验失败，未打包。")
-        files.append(Path("sky") / filename)
-    return files
 
 
 def package_resources(data_dir, output):

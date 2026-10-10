@@ -17,5 +17,6 @@ build/
 data/
 *.log
 *.bsp
+!assets/astronomy/de440s.bsp
 *.fits
 *.parquet

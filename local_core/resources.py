@@ -111,8 +111,10 @@ async def prepare(data_dir: Path = DATA_DIR) -> Path:
 
 
 async def prepare_all(data_dir: Path = DATA_DIR) -> None:
+    from .bundled_resources import seed_bundled_resources
     from .sky_resources import prepare_sky
 
+    seed_bundled_resources(data_dir)
     await prepare(data_dir)
     await prepare_sky(data_dir)
 

@@ -1,0 +1,73 @@
+{
+  "sources": {
+    "hipparcos": {
+      "url": "https://cdsarc.cds.unistra.fr/ftp/cats/I/239/hip_main.dat",
+      "filename": "hip_main.dat",
+      "sha256": "58ceabb104d647160d9437ce6e513a02a036bb4ad9f8879a5a22fd52943616e0",
+      "bytes": 53316318,
+      "obtained_at_utc": "2026-10-09T07:46:31.858761+00:00"
+    },
+    "hipparcos_readme": {
+      "url": "https://cdsarc.cds.unistra.fr/ftp/cats/I/239/ReadMe",
+      "filename": "hipparcos-readme.txt",
+      "sha256": "7a7d54903d16460a76c240f07c41b019d57becfd27b5dfa2908e828f52f90c27",
+      "bytes": 69036,
+      "obtained_at_utc": "2026-10-09T07:46:35.951565+00:00"
+    },
+    "constellations": {
+      "url": "https://raw.githubusercontent.com/Stellarium/stellarium/master/skycultures/modern_st/index.json",
+      "filename": "modern_st.json",
+      "sha256": "3afee46ae594300926db5d30b4b4d6ddeadacf8d454b043511e677a0c82bd6db",
+      "bytes": 94299,
+      "obtained_at_utc": "2026-10-09T07:46:37.988657+00:00"
+    },
+    "culture_license": {
+      "url": "https://raw.githubusercontent.com/Stellarium/stellarium/master/skycultures/modern_st/description.md",
+      "filename": "modern_st-description.md",
+      "sha256": "169b242f867ea6fc530b7bdeb92cb0870d7474d9230809c38a4f95364e186a51",
+      "bytes": 1693,
+      "obtained_at_utc": "2026-10-09T07:46:38.861483+00:00"
+    },
+    "cities": {
+      "url": "https://download.geonames.org/export/dump/cities1000.zip",
+      "filename": "cities1000.zip",
+      "sha256": "81dc87b0348cae3fdcd8cf7b7edad32f21d485ed71a8c54f4886c453dde67173",
+      "bytes": 11058477,
+      "obtained_at_utc": "2026-10-09T07:47:47.981017+00:00"
+    },
+    "cities_readme": {
+      "url": "https://download.geonames.org/export/dump/readme.txt",
+      "filename": "geonames-readme.txt",
+      "sha256": "b1957379b6c1242c700c98ac9a8aa0a09f56c3c0a50ee72175527005f48ef2c5",
+      "bytes": 8843,
+      "obtained_at_utc": "2026-10-09T07:47:52.961458+00:00"
+    }
+  },
+  "parser_version": 1,
+  "input_hashes": {
+    "hipparcos": "58ceabb104d647160d9437ce6e513a02a036bb4ad9f8879a5a22fd52943616e0",
+    "hipparcos_readme": "7a7d54903d16460a76c240f07c41b019d57becfd27b5dfa2908e828f52f90c27",
+    "constellations": "3afee46ae594300926db5d30b4b4d6ddeadacf8d454b043511e677a0c82bd6db",
+    "culture_license": "169b242f867ea6fc530b7bdeb92cb0870d7474d9230809c38a4f95364e186a51",
+    "cities": "81dc87b0348cae3fdcd8cf7b7edad32f21d485ed71a8c54f4886c453dde67173",
+    "cities_readme": "b1957379b6c1242c700c98ac9a8aa0a09f56c3c0a50ee72175527005f48ef2c5"
+  },
+  "derived": {
+    "stars": {
+      "filename": "stars.json.gz",
+      "sha256": "d99690687d28679882c1a9241036f33d5ff720b8613e9ba5d1b9791461e0fc06",
+      "count": 41394
+    },
+    "cities": {
+      "filename": "cities.json.gz",
+      "sha256": "425f5e70c700baef1290659477678930db3afa9aba93bf1e5885a76d5718eeae",
+      "count": 171174
+    }
+  },
+  "prepared_at_utc": "2026-10-09T07:47:56.146296+00:00",
+  "credits": {
+    "stars": "ESA Hipparcos (1997), CDS I/239",
+    "constellations": "Stellarium Modern (Sky & Telescope); CC BY-SA 2.0",
+    "cities": "GeoNames cities1000; CC BY 4.0"
+  }
+}

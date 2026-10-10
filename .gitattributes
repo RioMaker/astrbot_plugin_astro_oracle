@@ -1,0 +1,3 @@
+# Downloaded astronomy files keep their original bytes and SHA-256 on every host.
+assets/astronomy/** -text -diff
+assets/astronomy/README.md text diff
