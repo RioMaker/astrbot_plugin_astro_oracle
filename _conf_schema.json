@@ -1,8 +1,48 @@
 {
   "enabled": {
     "type": "bool",
-    "description": "启用星轨神谕指令",
-    "hint": "当前版本提供帮助、状态和开发路线查询。关闭后指令仅提示插件已关闭。",
+    "description": "启用星图指令",
+    "default": true
+  },
+  "default_place": {
+    "type": "string",
+    "description": "默认观测地点",
+    "hint": "默认北京。可填唯一匹配的城市/乡镇名、#GeoNames编号，或 纬度,经度。",
+    "default": "北京"
+  },
+  "default_time": {
+    "type": "string",
+    "description": "不完整时间的默认补齐值",
+    "hint": "格式 HH:MM:SS。仅日期使用全部值；仅小时补齐分秒；仅分钟补齐秒。无时间参数时使用当前时刻。",
+    "default": "12:00:00"
+  },
+  "coordinate_timezone": {
+    "type": "string",
+    "description": "直接输入经纬度时的默认时区",
+    "hint": "城市自动采用 GeoNames 时区；经纬度定位使用本项。指令末尾 tz=Asia/Shanghai 或 tz=UTC+08:00 可覆盖。",
+    "default": "Asia/Shanghai"
+  },
+  "magnitude_limit": {
+    "type": "float",
+    "description": "恒星星等上限",
+    "hint": "范围 -2 至 8。数值越大显示越多暗星；行星目标保持展示。",
+    "default": 6
+  },
+  "show_constellation_lines": {
+    "type": "bool",
+    "description": "显示星座连线",
+    "default": true
+  },
+  "show_star_names": {
+    "type": "bool",
+    "description": "显示知名恒星名称",
+    "hint": "行星名称始终显示；恒星名称为避让布局后的适量标注。",
+    "default": true
+  },
+  "show_constellation_names": {
+    "type": "bool",
+    "description": "显示星座名称",
+    "hint": "仅在星座连线开启时显示。",
     "default": true
   }
 }

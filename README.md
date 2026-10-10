@@ -1,12 +1,12 @@
 # 星轨神谕 · Astro Oracle
 
-`astrbot_plugin_astro_oracle` 的当前目标是：输入日期或具体时刻，返回对应的真实行星状态，先通过本地联合调试，再考虑 AstrBot 接入。
+`astrbot_plugin_astro_oracle` 的当前插件功能是：按时间与地点生成一张标题为「星图」的双半球图片，默认当前时刻、北京。图中包含真实恒星、七个行星目标、可选星座连线及地球遮挡的暗面。
 
 **已实现独立本地计算原型 `0.1.0`**：八大行星、日/时/分/秒输入分辨率、时区、时间段采样、网页表单与结果表格、三维位置和速度、地心视坐标、JSON 导出与数据溯源。使用真实 JPL DE440s，资源准备后查询可离线执行。
 
 现在支持出生地观测视角的双半球星图：本地城市/乡镇搜索与经纬度校正、上半球与地球遮挡下半球、真实恒星星表、行星视星等估计、可选星座连线、名称提示和双图 PNG/JSON 导出。
 
-AstrBot 部分仍是 `0.1.0` 说明骨架，提供帮助/状态/开发路线查询；尚未把计算核心连接到插件指令。
+AstrBot 星图指令已接入同一计算核心，图片由本地 Pillow 生成，不依赖浏览器或远程文转图服务。当前版本为 `0.1.0`，本地实现已获用户确认，真实 AstrBot/OneBot 联合验收尚待进行。
 
 ## 启动本地联合调试
 
@@ -64,30 +64,54 @@ python launch_local.py
 
 更多字段与坐标定义见 [本地核心说明](docs/LOCAL_CORE.md)。
 
-## 使用指令
+## AstrBot 星图指令
 
 | 指令 | 功能 |
 | --- | --- |
-| `/星轨神谕` 或 `/星轨神谕 帮助` | 查看说明与当前能力 |
-| `/星轨神谕 状态` | 查看版本及开发状态 |
-| `/星轨神谕 路线` | 查看分阶段开发计划 |
-| `/astro_oracle help`、`status`、`roadmap` | 对应功能的英文入口 |
+| `/星图` | 当前时刻、默认北京 |
+| `/星图 help` 或 `/星图 帮助` | 使用说明与当前配置 |
+| `/星图 time 2026-10-10 20:30:00` | 指定时间，使用默认地点；子指令也可写 `时间` |
+| `/星图 place 上海` | 指定地点，使用当前时刻；子指令也可写 `地点` |
+| `/星图 at 2026-10-10 20:30:00 上海` | 指定时间和地点；子指令也可写 `时地` |
 
-指令前缀与唤醒方式遵循 AstrBot 的实际配置。当前指令只返回文本说明，不接收或保存出生资料。
+**四个前缀 `/星图`、`/xingtu`、`/xt`、`/star` 对所有子指令完全等效**，例如 `/xt help`、`/xingtu 时间 2026-10-10`、`/star at 2026-10-10 20:30 上海`。指令前缀与唤醒方式遵循 AstrBot 的实际配置。旧的说明骨架指令已移除，现阶段只提供这组星图指令，不注册全量监听或 LLM Tool。
 
-## AstrBot 骨架安装与配置
+AstrBot 指令每次返回一张同一时刻的双半球图。与本地网页的区间采样不同，插件按配置补齐缺少的时分秒，并在图片上写明实际采用的时刻及补齐说明：
+
+| 输入时间 | 默认配置为 `12:00:00` 时 |
+| --- | --- |
+| 不提供时间（`/星图` 或 `place`） | 接收指令的当前时刻，不使用补齐值 |
+| `2026-10-10` | `2026-10-10 12:00:00` |
+| `2026-10-10 09` | `2026-10-10 09:00:00` |
+| `2026-10-10 09:30` | `2026-10-10 09:30:00` |
+| `2026-10-10 09:30:04` | 按完整输入，保留指定秒 |
+
+地点使用本地 GeoNames 城市/乡镇库。时间按所选地点的时区解释；同名或模糊查询返回候选编号，用 `/star place #5128581` 明确选择纽约。也可使用 `/xt place 39.9075,116.39723` 校正经纬度，经纬度定位的默认时区可配置。在指令末尾加 `tz=UTC+08:00` 或 `tz=America/New_York` 可覆盖时区；夏令时歧义需用显式偏移确认。输入使用公历。
+
+图片标记地平线以上和地球遮挡方向，北朝上，上图东在左、暗面东在右；底部列出行星高度和模型视星等。恒星名称会适量避让，行星名称始终标记。上下半球划分和实际肉眼可见性的区别见 [星图说明](docs/SKY_CHART.md)。用户查询与生成图片仅存在内存中，不自动保存。
+
+## AstrBot 安装与配置
 
 开发基线为 Python 3.10+、AstrBot 4.24.0+。将本目录作为独立插件放入 AstrBot 的 `data/plugins/astrbot_plugin_astro_oracle/`，然后从 WebUI 重载或重启 AstrBot。当前本地仓库尚无远程地址，`metadata.yaml:repo` 留空。
 
-AstrBot 在其运行环境中提供 `astrbot` 模块。`main.py` 的说明指令没有额外依赖，`requirements.txt` 声明的是独立本地计算核心的依赖；插件入口不作为独立 Python 程序运行。
+AstrBot 在其运行环境中提供 `astrbot` 模块，并按 `requirements.txt` 安装计算与图片依赖。插件随附独立的 OFL 中文字体，可在 Windows 或 Linux 上本地绘图；无需 Chrome、Playwright 或远程文转图服务。插件入口不作为独立 Python 程序运行。
 
 WebUI 配置项：
 
 | 字段 | 默认值 | 行为 |
 | --- | --- | --- |
-| `enabled` | `true` | 启用说明指令；设为 `false` 后仅提示插件已关闭 |
+| `enabled` | `true` | 启用星图指令 |
+| `default_place` | `北京` | 默认城市；也支持 `#编号` 或 `纬度,经度` |
+| `default_time` | `12:00:00` | 补齐不完整时间中的缺失字段，不影响无参数的当前时刻 |
+| `coordinate_timezone` | `Asia/Shanghai` | 直接输入经纬度时的默认时区；城市自动采用地点时区 |
+| `magnitude_limit` | `6` | 显示恒星星等上限，范围 -2 至 8 |
+| `show_constellation_lines` | `true` | 星座连线开关 |
+| `show_star_names` | `true` | 知名恒星名称开关，行星名称始终显示 |
+| `show_constellation_names` | `true` | 连线开启时的星座名称开关 |
 
-运行配置由 AstrBot 管理。未来集成后，历表、星表和计算缓存使用框架的 `data/plugin_data/astrbot_plugin_astro_oracle/`，不依赖本地调试目录。
+运行配置由 AstrBot 管理。首次星图查询会提示资源准备，在工作线程中下载并校验公共数据；后续查询可离线执行。历表、星表和公共来源记录保存在框架提供的 `data/plugin_data/astrbot_plugin_astro_oracle/`，不依赖插件内的本地调试 `data/`。重载或卸载会等待已提交的计算结束后关闭历表与工作线程。
+
+若希望首次聊天前预先准备，在 AstrBot 的 Python 环境中运行本插件资源入口，并用 `--data-dir` 指向上述框架数据目录。数据地址、大小及许可见前文；公开数据下载不会上传用户时间和地点。现有本地调试数据与 AstrBot 数据目录分别管理，代码不自动跨目录复制。
 
 ## 项目结构
 
@@ -100,7 +124,8 @@ astrbot_plugin_astro_oracle/
 ├── web/                    浏览器表单、结果表格与双半球绘图
 ├── launch_local.py         自动切换 .venv，等待就绪后打开浏览器的 Python 入口
 ├── start_local.cmd         可选 Windows 快捷入口
-├── requirements.txt        本地核心运行依赖
+├── assets/fonts/           独立 AstroSans 字体、许可及来源校验记录
+├── requirements.txt        计算与星图图片运行依赖
 ├── requirements-dev.txt    测试和浏览器验证依赖
 ├── pyproject.toml          Ruff 检查与格式配置
 ├── AGENTS.md               插件专属开发约定
@@ -110,7 +135,7 @@ astrbot_plugin_astro_oracle/
 └── docs/                   核心说明、验证记录和阶段规划
 ```
 
-恒星星图已接入本地原型。特征提取、研究评估与 AstrBot 接入在联合调试后按实际需要开展，见 [开发路线](docs/ROADMAP.md)。
+恒星星图已接入本地原型与 AstrBot 专用指令。特征提取、研究评估等后续功能仍按确认需求开展，见 [开发路线](docs/ROADMAP.md)。
 
 ## 本地验证
 
@@ -125,11 +150,13 @@ uvx ruff format --check .
 .\.venv\Scripts\python.exe -X utf8 -m tools.verify_sky_ui
 .\.venv\Scripts\python.exe -X utf8 -m tools.verify_horizons
 .\.venv\Scripts\python.exe -X utf8 -m tools.verify_topocentric
+.\.venv\Scripts\python.exe -X utf8 -m tools.verify_astrbot_contract
+.\.venv\Scripts\python.exe -X utf8 -m tools.preview_bot_chart
 ```
 
 浏览器验证工具使用独立无头 Chrome 和任务自有随机端口，结束后关闭浏览器与服务。Horizons 工具逐条查询官方接口并保存响应，再次执行优先使用匹配的真实响应缓存；`--refresh` 可重新获取。原始报告与截图保存在被忽略的 `data/`。
 
-已完成的本地检查、官方参考差异及其限度见 [验证记录](docs/VALIDATION.md)。真实 AstrBot/OneBot 加载与用户联合验收尚未进行。
+`preview_bot_chart` 使用与插件相同的服务输出真实北京 PNG；可用 `--input "time 2026-10-10" --default-time 20:30:11` 检查默认补齐。`verify_astrbot_contract` 使用带 SHA-256 记录的官方 `CommandFilter` 核对四个入口的空参数和完整参数，不启动消息平台。已完成的检查、官方参考差异及其限度见 [验证记录](docs/VALIDATION.md)。真实 AstrBot/OneBot 加载与用户联合验收尚未进行。
 
 ## 方案与开发依据
 
@@ -139,4 +166,4 @@ uvx ruff format --check .
 
 ## 版本记录
 
-- `0.1.0`：创建独立插件与规范骨架；加入独立本地行星计算、时间分辨率、浏览器调试入口与真实数据验证。计算能力尚未接入 AstrBot 指令。
+- `0.1.0`：独立插件、本地行星计算、时间分辨率、浏览器调试入口与真实数据验证；新增 AstrBot 双半球星图入口。本地实现已获用户确认并授权提交，真实消息平台验收仍待进行。

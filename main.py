@@ -1,62 +1,69 @@
-"""星轨神谕的 AstrBot 指令入口；当前版本提供项目骨架信息。"""
+"""星轨神谕的 AstrBot 入口；现阶段仅提供星图指令。"""
 
-from astrbot.api import AstrBotConfig
-from astrbot.api.event import AstrMessageEvent, filter
+from datetime import datetime, timezone
+from pathlib import Path
+
+from astrbot.api import AstrBotConfig, logger
+from astrbot.api.event import AstrMessageEvent, MessageChain, filter
+from astrbot.api.message_components import Image, Plain
 from astrbot.api.star import Context, Star
+from astrbot.core.star.filter.command import GreedyStr
+from astrbot.core.utils.astrbot_path import get_astrbot_data_path
 
-VERSION = "0.1.0"
+from .local_core.bot_commands import ChartSettings, help_text, parse_request
+from .local_core.bot_service import ChartService
+
+PLUGIN_NAME = "astrbot_plugin_astro_oracle"
 
 
 class AstroOraclePlugin(Star):
-    """以真实天文状态为基础，逐步建立可复现的研究能力。"""
-
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
+        self.context = context
         self.config = config
+        data_dir = Path(get_astrbot_data_path()) / "plugin_data" / PLUGIN_NAME
+        self._charts = ChartService(data_dir)
 
-    @filter.command("星轨神谕", alias={"astro_oracle"})
-    async def astro_oracle(self, event: AstrMessageEvent, action: str = "帮助"):
-        """查询星轨神谕的帮助、状态或开发路线。"""
+    @filter.command("星图", alias={"xingtu", "xt", "star"})
+    async def star_chart(self, event: AstrMessageEvent, content: GreedyStr):
+        """当前星图；help/帮助、time/时间、place/地点、at/时地。"""
+        # GreedyStr 接收全部参数，也允许空字符串；不能为它添加普通字符串默认值。
+        # 在第一次 yield/await 前固定路由、输入、配置与请求时刻。
+        origin = str(event.unified_msg_origin)
+        now = datetime.now(timezone.utc)
+        event.stop_event()
         if not self.config.get("enabled", True):
-            yield event.plain_result("星轨神谕当前已关闭。")
+            yield event.plain_result("星图功能当前已关闭。")
             return
+        try:
+            settings = ChartSettings.from_mapping(self.config)
+            request = parse_request(str(content))
+        except ValueError as exc:
+            yield event.plain_result(f"{exc}\n使用 /星图 help 查看帮助。")
+            return
+        if request.action == "help":
+            yield event.plain_result(help_text(settings))
+            return
+        if not self._charts.ready:
+            yield event.plain_result("正在准备星图资源。首次使用需下载并校验公共天文数据，请稍候。")
+        try:
+            png = await self._charts.generate(request, settings, now)
+        except ValueError as exc:
+            await self.context.send_message(
+                origin, MessageChain([Plain(f"{exc}\n使用 /星图 help 查看帮助。")])
+            )
+            return
+        except Exception:
+            logger.exception("星图资源准备或图片生成失败")
+            await self.context.send_message(
+                origin,
+                MessageChain(
+                    [Plain("星图生成失败，请检查 AstrBot 日志中的资源或渲染错误后重试。")]
+                ),
+            )
+            return
+        # 图片仅在内存中生成；通过固定的会话路由发送，避免异步期间读取共享 event。
+        await self.context.send_message(origin, MessageChain([Image.fromBytes(png)]))
 
-        action = action.strip().lower()
-        aliases = {
-            "帮助": "help",
-            "状态": "status",
-            "路线": "roadmap",
-        }
-        action = aliases.get(action, action)
-        help_text = (
-            f"星轨神谕 · Astro Oracle v{VERSION}\n"
-            "目标：按时间与地点计算真实天体状态，逐步开展特征提取与验证。\n"
-            "当前阶段：项目骨架，天文计算尚未接入。\n\n"
-            "/星轨神谕 帮助 — 查看使用说明\n"
-            "/星轨神谕 状态 — 查看当前开发状态\n"
-            "/星轨神谕 路线 — 查看分阶段计划\n"
-            "英文别名：/astro_oracle help | status | roadmap"
-        )
-        responses = {
-            "help": help_text,
-            "status": (
-                f"星轨神谕 v{VERSION}\n"
-                "开发阶段：项目骨架\n"
-                "天文计算引擎：待接入\n"
-                "恒星目录与太阳系历表：待接入\n"
-                "当前仅提供帮助、状态和开发路线查询。"
-            ),
-            "roadmap": (
-                "星轨神谕开发路线\n"
-                "1. 建立时间与地点输入、天体状态计算及误差验证。\n"
-                "2. 接入恒星目录，提取可复现的天文特征。\n"
-                "3. 建立经同意的研究数据采集与质量检查。\n"
-                "4. 开展基线比较、随机对照与独立样本验证。\n"
-                "5. 根据验证结果扩展日期范围和天体数量。\n"
-                "当前已完成项目骨架创建。"
-            ),
-        }
-        response = responses.get(action)
-        if response is None:
-            response = "暂不支持该操作。\n\n" + help_text
-        yield event.plain_result(response)
+    async def terminate(self):
+        await self._charts.close()

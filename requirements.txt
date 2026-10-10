@@ -1,6 +1,7 @@
-# 本地行星计算核心；AstrBot 说明指令本身不导入这些依赖。
+# 本地计算与 AstrBot 星图图片运行依赖。
 skyfield==1.55
 jplephem==2.24
 numpy==2.2.6
 httpx==0.28.1
 tzdata==2026.5
+Pillow==11.3.0

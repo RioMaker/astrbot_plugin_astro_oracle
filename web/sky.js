@@ -119,7 +119,7 @@
   function exportImage(data,options={}) {
     const output=document.createElement("canvas");output.width=1680;output.height=1000;
     const ctx=output.getContext("2d");ctx.fillStyle="#101b25";ctx.fillRect(0,0,1680,1000);
-    ctx.font='28px "Microsoft YaHei",sans-serif';ctx.fillStyle="#dcf0e8";ctx.fillText("星轨神谕 · 出生地双半球星图",38,45);
+    ctx.font='28px "Microsoft YaHei",sans-serif';ctx.fillStyle="#dcf0e8";ctx.fillText("星图",38,45);
     ctx.font='15px "Microsoft YaHei",sans-serif';ctx.fillStyle="#a3b8bc";ctx.fillText(`${data.site.label} · ${data.epoch_local} · 纬度 ${data.site.latitude}° / 经度 ${data.site.longitude}°`,38,76);
     ["upper","lower"].forEach((hemisphere,index)=>{
       const canvas=document.createElement("canvas");Object.defineProperty(canvas,"clientWidth",{value:800});

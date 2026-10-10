@@ -1,0 +1,8 @@
+{
+  "source": "https://github.com/notofonts/noto-cjk/blob/main/Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Regular.otf",
+  "source_sha256": "2c76254f6fc379fddfce0a7e84fb5385bb135d3e399294f6eeb6680d0365b74b",
+  "output_sha256": "db46394956f6e53968b09f8e044a3f63b9bd48e15a18afb10ea1ded2045c3050",
+  "output_bytes": 11137840,
+  "license": "SIL Open Font License 1.1; see LICENSE.txt",
+  "modification": "Subset of Latin, common CJK, kana and display punctuation; renamed AstroSans; original copyright retained in font metadata."
+}
