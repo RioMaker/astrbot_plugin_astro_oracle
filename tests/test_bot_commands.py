@@ -5,6 +5,8 @@ import pytest
 from local_core.bot_commands import (
     ChartSettings,
     help_text,
+    migrate_default_time,
+    parse_coordinates,
     parse_request,
     resolve_place,
     resolve_time,
@@ -38,7 +40,7 @@ def test_command_modes_preserve_multiword_locations(content, action, time, place
 @pytest.mark.parametrize(
     "content",
     [
-        "nonsense",
+        "20250",
         "help 北京",
         "time",
         "place",
@@ -151,3 +153,121 @@ def test_help_describes_all_prefixes_and_current_defaults():
     value = help_text(ChartSettings(default_time="15:42:07"))
     for name in ("/星图", "/xingtu", "/xt", "/star", "time", "place", "at", "15:42:07"):
         assert name in value
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        ("2000", "2000-01-01T08:00:00+00:00"),
+        ("200010", "2000-10-01T08:00:00+00:00"),
+        ("20010101", "2001-01-01T08:00:00+00:00"),
+        ("2000101001", "2000-10-10T01:00:00+00:00"),
+        ("200010100100", "2000-10-10T01:00:00+00:00"),
+        ("20001010010023", "2000-10-10T01:00:23+00:00"),
+        ("2025-02", "2025-02-01T08:00:00+00:00"),
+        ("20250102 09:30", "2025-01-02T09:30:00+00:00"),
+    ],
+)
+def test_compact_fields_and_partial_calendar_defaults(value, expected):
+    settings = ChartSettings()
+    request = parse_request(value)
+    moment, note = resolve_time(request, "UTC", settings.default_time, NOW)
+    assert moment.isoformat() == expected
+    assert "输入到" in note
+    assert settings.default_time == "08:00:00"
+
+
+@pytest.mark.parametrize(
+    "text,time,place",
+    [
+        ("北京", None, "北京"),
+        ("北京 20250102", "20250102", "北京"),
+        ("20250102 北京", "20250102", "北京"),
+        ("New York City 20250102", "20250102", "New York City"),
+        ("2025-01-02 09:30 北京", "2025-01-02 09:30", "北京"),
+        ("30.25°N 120.5°E 20250102", "20250102", "30.25°N 120.5°E"),
+        ("20250102 30 120.5", "20250102", "30 120.5"),
+    ],
+)
+def test_direct_inputs_detect_time_and_location_in_both_orders(text, time, place):
+    request = parse_request(text)
+    assert request.time_text == time and request.place_text == place
+    assert request.action == ("at" if time else "place")
+
+
+@pytest.mark.parametrize(
+    "text,latitude,longitude",
+    [
+        ("30.25°N 120.5°E", 30.25, 120.5),
+        ("120.5°E 30.25°N", 30.25, 120.5),
+        ("30.25 N 120.5 E", 30.25, 120.5),
+        ("N 30.25 E 120.5", 30.25, 120.5),
+        ("30.25° N 120.5° E", 30.25, 120.5),
+        ("３０．２５°Ｎ １２０．５°Ｅ", 30.25, 120.5),
+        ("30.25S 120.5W", -30.25, -120.5),
+        ("-30.25, -120.5", -30.25, -120.5),
+        ("30.25，120.5", 30.25, 120.5),
+    ],
+)
+def test_coordinate_format_signs_and_axes(text, latitude, longitude):
+    site = parse_coordinates(text)
+    assert site["latitude"] == latitude and site["longitude"] == longitude
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "200",
+        "20250",
+        "2025010",
+        "202500",
+        "20250230",
+        "2025010224",
+        "202501020160",
+        "20250102010060",
+        "08:30",
+        "北京 2025 2026",
+        "30.25°N",
+        "30°N 40°N",
+        "-30°N 120°E",
+        "91°N 120°E",
+        "30°N 181°E",
+    ],
+)
+def test_ambiguous_missing_year_or_invalid_fields_are_rejected(text):
+    with pytest.raises(ValueError):
+        parse_request(text)
+
+
+def test_default_beijing_direct_forms_and_coordinates_use_real_data(places):
+    settings = ChartSettings()
+    for text in ("20010101", "北京 20010101", "20010101 北京"):
+        request = parse_request(text)
+        site, zone, source = resolve_place(
+            places, request.place_text or settings.default_place, settings.coordinate_timezone
+        )
+        assert source["id"] == 1816670 and zone == "Asia/Shanghai"
+        instant, _ = resolve_time(request, zone, settings.default_time, NOW)
+        assert instant.isoformat() == "2001-01-01T00:00:00+00:00"
+    request = parse_request("30.25°N 120.5°E 20250102")
+    site, zone, _ = resolve_place(places, request.place_text, settings.coordinate_timezone)
+    assert site["latitude"] == 30.25 and site["longitude"] == 120.5
+    assert resolve_time(request, zone, settings.default_time, NOW)[0].hour == 0
+
+
+def test_legacy_default_migrates_once_and_custom_value_survives():
+    class Config(dict):
+        saves = 0
+
+        def save_config(self):
+            self.saves += 1
+
+    old = Config(default_time="12:00:00")
+    migrate_default_time(old)
+    assert old["default_time"] == "08:00:00" and old.saves == 1
+    old["default_time"] = "12:00:00"
+    migrate_default_time(old)
+    assert old["default_time"] == "12:00:00" and old.saves == 1
+    custom = Config(default_time="13:27:41")
+    migrate_default_time(custom)
+    assert custom["default_time"] == "13:27:41" and custom.saves == 1

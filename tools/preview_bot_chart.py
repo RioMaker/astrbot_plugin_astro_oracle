@@ -27,7 +27,7 @@ async def preview(args):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", default="time 2026-10-10 20:30:00")
-    parser.add_argument("--default-time", default="12:00:00")
+    parser.add_argument("--default-time", default="08:00:00")
     parser.add_argument("--output", type=Path, default=DATA_DIR / "bot-validation" / "beijing.png")
     asyncio.run(preview(parser.parse_args()))
 

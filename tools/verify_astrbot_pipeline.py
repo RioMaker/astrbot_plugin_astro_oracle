@@ -154,7 +154,7 @@ async def verify():
         ("help", False, True, (1, 0, 0)),
         ("", False, True, (1, 1, 1)),
         ("", True, True, (0, 1, 1)),
-        ("invalid", False, True, (1, 0, 0)),
+        ("20250", False, True, (1, 0, 0)),
         ("", False, False, (1, 0, 0)),
     ):
         result = await run_case(ROOT / "main.py", content, ready, enabled)

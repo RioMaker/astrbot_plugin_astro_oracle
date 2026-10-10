@@ -84,6 +84,12 @@ def main():
         "time 2026-10-10 20:30:00",
         "place New York City",
         "at 2026-10-10 20:30:00 上海",
+        "200010100100",
+        "20010101",
+        "北京",
+        "北京 20250102",
+        "30.25°N 120.5°E",
+        "30.25°N 120.5°E 20250102",
     ]
     cases = []
     for prefix in ("星图", "xingtu", "xt", "star"):
@@ -103,7 +109,7 @@ def main():
         ).isoformat(),
         "plugin_sha256": hashlib.sha256((ROOT / "main.py").read_bytes()).hexdigest(),
         "cases": cases,
-        "result": "20 alias/argument cases passed; 4 unrelated commands ignored",
+        "result": f"{len(cases)} alias/argument cases passed; 4 unrelated commands ignored",
         "scope": "Official filter code with minimal import collaborators; no live AstrBot/OneBot",
     }
     output = ROOT / "data" / "bot-validation"

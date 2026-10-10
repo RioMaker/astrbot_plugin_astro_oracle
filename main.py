@@ -10,7 +10,7 @@ from astrbot.api.star import Context, Star
 from astrbot.core.star.filter.command import GreedyStr
 from astrbot.core.utils.astrbot_path import get_astrbot_data_path
 
-from .local_core.bot_commands import ChartSettings, help_text, parse_request
+from .local_core.bot_commands import ChartSettings, help_text, migrate_default_time, parse_request
 from .local_core.bot_service import ChartService
 from .local_core.resources import ResourceDownloadError
 
@@ -22,6 +22,7 @@ class AstroOraclePlugin(Star):
         super().__init__(context)
         self.context = context
         self.config = config
+        migrate_default_time(config)
         data_dir = Path(get_astrbot_data_path()) / "plugin_data" / PLUGIN_NAME
         self._charts = ChartService(data_dir)
 

@@ -2,22 +2,40 @@
 
 import math
 import re
+import unicodedata
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
 from .geography import normalize
 from .sky_chart import validate_site
-from .time_input import PATTERN, PRECISION_LABELS, localize, parse_timezone
+from .time_input import PRECISION_LABELS, localize, parse_timezone
 
-DATE_PREFIX = re.compile(r"^(\d{4}-\d{2}-\d{2}(?:[ T]\d{2}(?::\d{2}(?::\d{2})?)?)?)(?:\s+(.+))?$")
-COORDINATES = re.compile(r"^([+-]?\d+(?:\.\d+)?)[,，]([+-]?\d+(?:\.\d+)?)$")
+COMPACT_LENGTHS = {4: 1, 6: 2, 8: 3, 10: 4, 12: 5, 14: 6}
+DATE = re.compile(r"^(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?$")
+CLOCK = re.compile(r"^(\d{2})(?::(\d{2})(?::(\d{2}))?)?$")
+NUMBER = r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)"
+COORDINATE = re.compile(rf"^([NSEW])?({NUMBER})(?:°|度)?([NSEW])?$", re.IGNORECASE)
 ACTIONS = {"帮助": "help", "时间": "time", "地点": "place", "时地": "at"}
+DEFAULT_TIME = "08:00:00"
+
+
+def migrate_default_time(config):
+    """一次性迁移旧版出厂的 12 点值，其他自定义值保留。"""
+    revision = config.get("_input_defaults_version", 0)
+    if isinstance(revision, int) and revision >= 1:
+        return
+    if config.get("default_time", DEFAULT_TIME) == "12:00:00":
+        config["default_time"] = DEFAULT_TIME
+    config["_input_defaults_version"] = 1
+    save = getattr(config, "save_config", None)
+    if callable(save):
+        save()
 
 
 @dataclass(frozen=True)
 class ChartSettings:
     default_place: str = "北京"
-    default_time: str = "12:00:00"
+    default_time: str = DEFAULT_TIME
     coordinate_timezone: str = "Asia/Shanghai"
     magnitude_limit: float = 6
     lines: bool = True
@@ -28,7 +46,7 @@ class ChartSettings:
     def from_mapping(cls, config):
         result = cls(
             default_place=str(config.get("default_place", "北京")).strip(),
-            default_time=str(config.get("default_time", "12:00:00")).strip(),
+            default_time=str(config.get("default_time", DEFAULT_TIME)).strip(),
             coordinate_timezone=str(config.get("coordinate_timezone", "Asia/Shanghai")).strip(),
             magnitude_limit=config.get("magnitude_limit", 6),
             lines=config.get("show_constellation_lines", True),
@@ -63,7 +81,7 @@ class ChartRequest:
 
 def default_clock(value):
     if not re.fullmatch(r"\d{2}:\d{2}:\d{2}", value):
-        raise ValueError("默认时间配置须为 HH:MM:SS，例如 12:00:00。")
+        raise ValueError("默认时间配置须为 HH:MM:SS，例如 08:00:00。")
     try:
         return datetime.strptime(value, "%H:%M:%S").time()
     except ValueError as exc:
@@ -71,20 +89,121 @@ def default_clock(value):
 
 
 def validate_time_text(value):
-    match = PATTERN.fullmatch(value)
-    if not match:
-        raise ValueError("时间格式：YYYY-MM-DD [HH[:MM[:SS]]]，使用公历。")
+    date, separator, clock = value.replace("T", " ").partition(" ")
+    if date.isascii() and date.isdigit():
+        length = COMPACT_LENGTHS.get(len(date))
+        if length is None or (separator and length > 3):
+            raise ValueError("紧凑日期须为 4/6/8/10/12/14 位，至少提供四位年份。")
+        parts = [date[:4]] + [date[i : i + 2] for i in range(4, len(date), 2)]
+        parts += [None] * (6 - length)
+    else:
+        match = DATE.fullmatch(date)
+        if not match:
+            raise ValueError("至少提供四位年份；支持 YYYYMMDDHHMMSS 或 YYYY-MM-DD HH:MM:SS。")
+        parts = [*match.groups(), None, None, None]
+    if separator:
+        match = CLOCK.fullmatch(clock)
+        if not match:
+            raise ValueError("时分秒格式须为 HH、HH:MM 或 HH:MM:SS。")
+        parts[3:] = match.groups()
     try:
-        datetime(*(int(part or 0) for part in match.groups()))
+        datetime(
+            int(parts[0]),
+            int(parts[1] or 1),
+            int(parts[2] or 1),
+            *(int(part or 0) for part in parts[3:]),
+        )
     except ValueError as exc:
         raise ValueError("日期或时分秒无效；当前不接受闰秒 60。") from exc
-    return match.groups()
+    return tuple(parts)
+
+
+def parse_coordinates(text):
+    text = unicodedata.normalize("NFKC", text.replace("º", "°")).replace("−", "-")
+    text = re.sub(r"\s*(°|度)\s*", r"\1", text)
+    prefix_style = bool(re.match(rf"^[NSEW]\s*{NUMBER}", text, re.I))
+    if prefix_style:
+        text = re.sub(r"(?<![\d°])\b([NSEW])\s+(?=[+\-\d.])", r"\1", text, flags=re.I)
+    text = re.sub(r"(?<=[\d°])\s+([NSEW])\b", r"\1", text, flags=re.IGNORECASE)
+    text = re.sub(r"(?<![\d°])\b([NSEW])\s+(?=[+\-\d.])", r"\1", text, flags=re.IGNORECASE)
+    tokens = re.split(r"[\s,;]+", text)
+    if len(tokens) != 2:
+        return None
+    matches = [COORDINATE.fullmatch(token) for token in tokens]
+    if not all(matches):
+        return None
+    values = []
+    for match in matches:
+        first, number, last = match.groups()
+        if first and last and first.upper() != last.upper():
+            raise ValueError("同一个坐标的方向标记不一致。")
+        direction = (first or last or "").upper()
+        value = float(number)
+        if value < 0 and direction in {"N", "E"}:
+            raise ValueError("负数坐标与 N/E 方向冲突。")
+        if direction in {"S", "W"}:
+            value = -abs(value)
+        values.append((direction, value))
+    if any(direction for direction, _ in values):
+        axes = {
+            "latitude" if direction in {"N", "S"} else "longitude": value
+            for direction, value in values
+            if direction
+        }
+        if not all(direction for direction, _ in values) or len(axes) != 2:
+            raise ValueError("经纬度须分别提供一个 N/S 纬度和一个 E/W 经度。")
+    else:
+        axes = {"latitude": values[0][1], "longitude": values[1][1]}
+    return validate_site({**axes, "label": "经纬度定位"})
+
+
+def extract_arguments(tokens):
+    time_text, remaining = None, []
+    index = 0
+    while index < len(tokens):
+        token = tokens[index]
+        candidate = (token.isascii() and token.isdigit() and len(token) >= 4) or bool(
+            re.match(r"^\d{4}[-T]", token)
+        )
+        if candidate:
+            if time_text is not None:
+                raise ValueError("只支持一个日期时间参数。")
+            time_text = token
+            coordinate_pair_follows = (
+                index + 2 < len(tokens)
+                and re.fullmatch(NUMBER, tokens[index + 1])
+                and re.fullmatch(NUMBER, tokens[index + 2])
+            )
+            if (
+                index + 1 < len(tokens)
+                and not coordinate_pair_follows
+                and CLOCK.fullmatch(tokens[index + 1])
+                and len(token) <= 10
+                and "T" not in token
+            ):
+                time_text += " " + tokens[index + 1]
+                index += 1
+            validate_time_text(time_text)
+        else:
+            remaining.append(token)
+        index += 1
+    place = " ".join(remaining) or None
+    if place:
+        if len(place) > 80:
+            raise ValueError("地点参数须为不超过 80 字的文本。")
+        coordinates = parse_coordinates(place)
+        if coordinates is None and ("°" in place or re.fullmatch(rf"{NUMBER}[NSEW]", place, re.I)):
+            raise ValueError("经纬度须输入完整的一对，例如 30.25°N 120.5°E。")
+        if coordinates is None and not re.search(r"[^\d\s:.,;+\-°]", place):
+            raise ValueError("日期时间至少需要四位年份；经纬度须输入完整的一对。")
+    return time_text, place
 
 
 def parse_request(content):
     if not isinstance(content, str) or len(content) > 300:
         raise ValueError("星图指令参数须为不超过 300 字的文本。")
-    text = " ".join(content.split())
+    text = unicodedata.normalize("NFKC", content.replace("º", "°")).replace("−", "-")
+    text = " ".join(text.split())
     if not text:
         return ChartRequest()
     action, _, rest = text.partition(" ")
@@ -93,37 +212,32 @@ def parse_request(content):
         if rest:
             raise ValueError("帮助指令不接受其他参数，请使用 /星图 help。")
         return ChartRequest(action="help")
-    if action not in {"time", "place", "at"}:
-        raise ValueError("子指令：help/帮助、time/时间、place/地点、at/时地。")
+    explicit = action if action in {"time", "place", "at"} else None
+    if explicit is None:
+        rest = text
     zone = None
     tokens = rest.split()
     if tokens and tokens[-1].startswith("tz="):
         zone = tokens.pop()[3:]
         parse_timezone(zone)
         rest = " ".join(tokens)
-    if action == "time":
-        validate_time_text(rest)
-        return ChartRequest(action=action, time_text=rest, timezone_override=zone)
-    if action == "place":
-        if not 1 <= len(rest) <= 80:
-            raise ValueError("地点格式：/星图 place 北京，或 place 纬度,经度。")
-        return ChartRequest(action=action, place_text=rest, timezone_override=zone)
-    match = DATE_PREFIX.fullmatch(rest)
-    if not match or not match[2] or len(match[2]) > 80:
-        raise ValueError("时地格式：/星图 at 2026-10-10 20:30:00 北京。")
-    validate_time_text(match[1])
-    return ChartRequest(
-        action=action, time_text=match[1], place_text=match[2], timezone_override=zone
-    )
+    if any(token.startswith("tz=") for token in tokens):
+        raise ValueError("时区参数 tz=... 须放在指令末尾。")
+    time_text, place = extract_arguments(rest.split())
+    if explicit == "time" and (time_text is None or place is not None):
+        raise ValueError("时间指令示例：/星图 time 20250102；地点组合可直接输入 北京 20250102。")
+    if explicit == "place" and (place is None or time_text is not None):
+        raise ValueError("地点指令示例：/星图 place 北京；地点组合可直接输入 北京 20250102。")
+    if explicit == "at" and (time_text is None or place is None):
+        raise ValueError("时地指令示例：/星图 at 北京 20250102。")
+    action = "at" if time_text and place else "time" if time_text else "place" if place else "now"
+    return ChartRequest(action, time_text, place, zone)
 
 
 def resolve_place(places, query, coordinate_timezone):
     """只采用确定的地点；同名候选用 GeoNames ID 明确选择。"""
-    match = COORDINATES.fullmatch(query)
-    if match:
-        site = validate_site(
-            {"latitude": float(match[1]), "longitude": float(match[2]), "label": "经纬度定位"}
-        )
+    site = parse_coordinates(query)
+    if site:
         return site, coordinate_timezone, {"source": "用户指定经纬度"}
     identifier = re.fullmatch(r"#(\d+)", query)
     country = None
@@ -169,17 +283,33 @@ def resolve_time(request, zone_name, configured_time, now):
         return now.astimezone(timezone.utc).replace(microsecond=0), "当前时刻（接收指令时）"
     year, month, day, hour, minute, second = validate_time_text(request.time_text)
     clock = default_clock(configured_time)
-    precision = "second" if second else "minute" if minute else "hour" if hour else "day"
+    precision = (
+        "second"
+        if second
+        else "minute"
+        if minute
+        else "hour"
+        if hour
+        else "day"
+        if day
+        else "month"
+        if month
+        else "year"
+    )
     naive = datetime(
         int(year),
-        int(month),
-        int(day),
+        int(month or 1),
+        int(day or 1),
         clock.hour if hour is None else int(hour),
         clock.minute if minute is None else int(minute),
         clock.second if second is None else int(second),
     )
     moment = localize(naive, zone).astimezone(timezone.utc)
-    note = f"输入到{PRECISION_LABELS[precision]}"
+    note = f"输入到{dict(PRECISION_LABELS, year='年', month='月')[precision]}"
+    if month is None:
+        note += "；缺月补 1 月"
+    if day is None:
+        note += "；缺日补 1 号"
     if precision != "second":
         note += f"；缺失时分秒按配置 {configured_time} 补齐"
     return moment, note
@@ -190,15 +320,21 @@ def help_text(settings):
         "星图\n"
         f"/星图 — 当前时刻，默认地点：{settings.default_place}\n"
         "/星图 help（帮助）\n"
-        "/星图 time 2026-10-10 20:30:00（时间）\n"
-        "/星图 place 上海（地点，使用当前时刻）\n"
-        "/星图 at 2026-10-10 20:30:00 上海（时地）\n"
+        "/星图 200010100100 — 2000-10-10 01:00:00，默认地点\n"
+        "/星图 20010101 — 2001-01-01，补齐默认时间\n"
+        "/星图 2025 或 202501 — 缺月补 1 月，缺日补 1 号\n"
+        "/星图 北京 — 当前北京\n"
+        "/星图 北京 20250102 — 指定地点和日期，顺序也可交换\n"
+        "/星图 30.25°N 120.5°E [20250102] — 经纬度，可追加时间\n"
+        "/星图 30.25,120.5 — 也支持 纬度,经度 或两个小数\n"
         "四个前缀 /星图、/xingtu、/xt、/star 完全等效。\n"
-        "日期格式：公历 YYYY-MM-DD，可追加 HH、HH:MM、HH:MM:SS。\n"
+        "公历紧凑时间：YYYY、YYYYMM、YYYYMMDD、YYYYMMDDHH、YYYYMMDDHHMM、"
+        "YYYYMMDDHHMMSS；也支持 YYYY-MM-DD HH:MM:SS。至少提供年份。\n"
         f"每次一张双半球图，缺少的时分秒按配置 {settings.default_time} 补齐。\n"
         "指定时间按所选地点的时区解释，可在末尾加 tz=UTC+08:00 等显式时区。\n"
-        f"坐标示例：/xt place 39.9075,116.39723（默认 {settings.coordinate_timezone}）。\n"
+        f"经纬度默认时区 {settings.coordinate_timezone}；N/S 为纬度，E/W 为经度。\n"
         "同名地点按提示使用 #编号，例如 /star place #5128581。\n"
+        "旧入口 time/时间、place/地点、at/时地仍兼容。\n"
         "上半球为地平线以上；暗面为地球遮挡方向。"
         "星等映射亮度，日光、天气和地形会影响实际可见性。"
     )

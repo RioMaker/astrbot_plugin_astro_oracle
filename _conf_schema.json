@@ -7,14 +7,20 @@
   "default_place": {
     "type": "string",
     "description": "默认观测地点",
-    "hint": "默认北京。可填唯一匹配的城市/乡镇名、#GeoNames编号，或 纬度,经度。",
+    "hint": "默认北京。可填唯一匹配的城市/乡镇名、#GeoNames编号，或 30.25°N 120.5°E、纬度,经度。",
     "default": "北京"
   },
   "default_time": {
     "type": "string",
     "description": "不完整时间的默认补齐值",
-    "hint": "格式 HH:MM:SS。仅日期使用全部值；仅小时补齐分秒；仅分钟补齐秒。无时间参数时使用当前时刻。",
-    "default": "12:00:00"
+    "hint": "格式 HH:MM:SS，默认早八点。缺少的时分秒按此补齐；缺月、日固定补 1。无时间参数使用当前时刻。",
+    "default": "08:00:00"
+  },
+  "_input_defaults_version": {
+    "type": "int",
+    "description": "指令默认值迁移版本",
+    "invisible": true,
+    "default": 0
   },
   "coordinate_timezone": {
     "type": "string",

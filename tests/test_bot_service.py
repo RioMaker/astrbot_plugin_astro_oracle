@@ -126,3 +126,29 @@ def test_visual_brightness_mapping_and_unknown_magnitude():
     values = [visual_style(m) for m in (-4, 0, 3, 6, 8)]
     assert all(a[0] > b[0] and a[1] > b[1] for a, b in zip(values, values[1:]))
     assert visual_style(None) == (2, 0.6)
+
+
+def test_user_shorthand_forms_match_actual_full_timestamp_sky_pixels():
+    service = bot_service.ChartService(DATA_DIR)
+
+    def sky_pixels(png):
+        with Image.open(io.BytesIO(png)) as image:
+            return image.crop((30, 173, 1660, 945)).tobytes()
+
+    async def exercise():
+        try:
+            settings = ChartSettings()
+            for abbreviated, canonical in (
+                ("200010100100", "time 2000-10-10 01:00:00"),
+                ("20010101", "time 2001-01-01 08:00:00"),
+                ("北京 20250102", "at 2025-01-02 08:00:00 北京"),
+                ("30.25°N 120.5°E 20250102", "at 2025-01-02 08:00:00 30.25,120.5"),
+            ):
+                first = await service.generate(parse_request(abbreviated), settings, NOW)
+                second = await service.generate(parse_request(canonical), settings, NOW)
+                assert sky_pixels(first) == sky_pixels(second)
+            assert service._sky is not None
+        finally:
+            await service.close()
+
+    asyncio.run(exercise())

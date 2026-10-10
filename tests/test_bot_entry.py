@@ -131,7 +131,7 @@ def test_one_dedicated_command_registers_every_prefix_and_framework_data_dir(ada
     assert not hasattr(plugin, "astro_oracle")
 
 
-@pytest.mark.parametrize("content", ["help", "帮助", "time bad", "unknown"])
+@pytest.mark.parametrize("content", ["help", "帮助", "time bad", "20250"])
 def test_help_and_syntax_errors_do_not_prepare_data(adapter, content):
     module, _ = adapter
     plugin = module.AstroOraclePlugin(Context(), {"default_time": "13:27:41"})
@@ -175,7 +175,7 @@ def test_shared_event_and_config_mutation_do_not_change_first_request_route(adap
             if request.time_text == "2026-10-10":
                 entered.set()
                 await resume.wait()
-                assert settings.default_time == "12:00:00"
+                assert settings.default_time == "08:00:00"
                 return b"first-image"
             assert settings.default_time == "15:42:07"
             return b"second-image"
