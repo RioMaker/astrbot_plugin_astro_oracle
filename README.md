@@ -6,7 +6,7 @@
 
 现在支持出生地观测视角的双半球星图：本地城市/乡镇搜索与经纬度校正、上半球与地球遮挡下半球、真实恒星星表、行星视星等估计、可选星座连线、名称提示和双图 PNG/JSON 导出。
 
-AstrBot 星图指令已接入同一计算核心，图片由本地 Pillow 生成，不依赖浏览器或远程文转图服务。当前版本为 `0.1.0`，本地实现已获用户确认，真实 AstrBot/OneBot 联合验收尚待进行。
+AstrBot 星图指令已接入同一计算核心，图片由本地 Pillow 生成，不依赖浏览器或远程文转图服务。当前版本为 `0.1.1`，包含 AstrBot 核心依赖及首次请求兼容修复，真实 AstrBot/OneBot 回图仍待联合验收。
 
 ## 启动本地联合调试
 
@@ -96,6 +96,8 @@ AstrBot 指令每次返回一张同一时刻的双半球图。与本地网页的
 
 AstrBot 在其运行环境中提供 `astrbot` 模块，并按 `requirements.txt` 安装计算与图片依赖。插件随附独立的 OFL 中文字体，可在 Windows 或 Linux 上本地绘图；无需 Chrome、Playwright 或远程文转图服务。插件入口不作为独立 Python 程序运行。
 
+Pillow 使用兼容范围 `>=11.3.0,<13`，可沿用 AstrBot 核心已有的 `12.3.0`。旧版 `0.1.0` 固定 `11.3.0`，会被 AstrBot `4.28.1` 的核心依赖保护拦截；遇到该冲突请更新到本版本后重载，不要降级 AstrBot 核心依赖。帮助、准备提示和图片均通过固定会话路由发送，入口用普通异步协程完成，避免停止事件后的 `yield` 截断首次计算。
+
 WebUI 配置项：
 
 | 字段 | 默认值 | 行为 |
@@ -151,6 +153,7 @@ uvx ruff format --check .
 .\.venv\Scripts\python.exe -X utf8 -m tools.verify_horizons
 .\.venv\Scripts\python.exe -X utf8 -m tools.verify_topocentric
 .\.venv\Scripts\python.exe -X utf8 -m tools.verify_astrbot_contract
+.\.venv\Scripts\python.exe -X utf8 -m tools.verify_astrbot_pipeline
 .\.venv\Scripts\python.exe -X utf8 -m tools.preview_bot_chart
 ```
 
@@ -166,4 +169,5 @@ uvx ruff format --check .
 
 ## 版本记录
 
+- `0.1.1`：兼容 AstrBot 核心 Pillow 12.x；修复停止事件后 `yield` 准备提示导致首次生成未进入计算的问题；增加官方 `4.28.1` 调度代码回归。
 - `0.1.0`：独立插件、本地行星计算、时间分辨率、浏览器调试入口与真实数据验证；新增 AstrBot 双半球星图入口。本地实现已获用户确认并授权提交，真实消息平台验收仍待进行。

@@ -27,6 +27,6 @@ ESA 1997，《The Hipparcos and Tycho Catalogues》，ESA SP-1200，CDS 编号 I
 Skyfield 使用 Mallama & Hilton 2018，[Computing Apparent Planetary Magnitudes for The Astronomical Almanac](https://arxiv.org/abs/1808.01973) 的 V 波段光度模型。星等为估计值，模型限制按实际返回值与说明保留。Skyfield、jplephem、NumPy 和 httpx 通过依赖安装使用，相关库许可由各自分发包提供。
 ## 插件图片渲染
 
-- **Pillow 11.3.0**：HPND / PIL Software License，通过依赖安装使用。来源 <https://github.com/python-pillow/Pillow>。
+- **Pillow**（兼容范围 `>=11.3.0,<13`）：HPND / PIL Software License，通过依赖安装使用。保留 AstrBot 核心允许的已安装版本，不强制降级。来源 <https://github.com/python-pillow/Pillow>。
 - **AstroSans.otf**：Noto Sans CJK SC Regular 的裁剪、重命名版本，采用 SIL OFL 1.1，原版权保留在字体元数据中。许可见 `assets/fonts/LICENSE.txt`，官方来源与原始/输出 SHA-256 见 `assets/fonts/provenance.json`。字体包含常用中日韩文字、拉丁文字与显示标点，可在无系统中文字体的环境使用。来源 <https://github.com/notofonts/noto-cjk>。构建脚本 `tools/build_font.py` 需要 fontTools 4.59.2（MIT），运行插件不需要该工具。
 - 图片中的星座图形沿用本文已列明的 Stellarium Sky & Telescope 数据许可 CC BY-SA 2.0，保留作者、来源与许可链接。

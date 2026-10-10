@@ -28,24 +28,31 @@ class AstroOraclePlugin(Star):
     async def star_chart(self, event: AstrMessageEvent, content: GreedyStr):
         """当前星图；help/帮助、time/时间、place/地点、at/时地。"""
         # GreedyStr 接收全部参数，也允许空字符串；不能为它添加普通字符串默认值。
-        # 在第一次 yield/await 前固定路由、输入、配置与请求时刻。
+        # 在第一次 await 前固定路由、输入、配置与请求时刻。
         origin = str(event.unified_msg_origin)
         now = datetime.now(timezone.utc)
         event.stop_event()
         if not self.config.get("enabled", True):
-            yield event.plain_result("星图功能当前已关闭。")
+            await self.context.send_message(origin, MessageChain([Plain("星图功能当前已关闭。")]))
             return
         try:
             settings = ChartSettings.from_mapping(self.config)
             request = parse_request(str(content))
         except ValueError as exc:
-            yield event.plain_result(f"{exc}\n使用 /星图 help 查看帮助。")
+            await self.context.send_message(
+                origin, MessageChain([Plain(f"{exc}\n使用 /星图 help 查看帮助。")])
+            )
             return
         if request.action == "help":
-            yield event.plain_result(help_text(settings))
+            await self.context.send_message(origin, MessageChain([Plain(help_text(settings))]))
             return
         if not self._charts.ready:
-            yield event.plain_result("正在准备星图资源。首次使用需下载并校验公共天文数据，请稍候。")
+            await self.context.send_message(
+                origin,
+                MessageChain(
+                    [Plain("正在准备星图资源。首次使用需下载并校验公共天文数据，请稍候。")]
+                ),
+            )
         try:
             png = await self._charts.generate(request, settings, now)
         except ValueError as exc:

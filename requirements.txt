@@ -1,7 +1,8 @@
-# 本地计算与 AstrBot 星图图片运行依赖。
+# Runtime dependencies for the astronomy core and AstrBot PNG output.
 skyfield==1.55
 jplephem==2.24
 numpy==2.2.6
 httpx==0.28.1
 tzdata==2026.5
-Pillow==11.3.0
+# Share Pillow with AstrBot Core; retain compatible installed 12.x versions.
+Pillow>=11.3.0,<13

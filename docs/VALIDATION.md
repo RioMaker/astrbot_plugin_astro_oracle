@@ -63,3 +63,15 @@ Ruff 检查、格式检查和 Python 语法检查通过；全部 **116 项 pytes
 共享网页导出标题同时改为「星图」。重新执行真实浏览器检查，地点搜索、双半球、连线开关、时间精度/采样、PNG/JSON 导出、手机布局和无 JavaScript 页面错误均通过；工具确认自有服务关闭、端口 `57149` 释放。未重复未改动的天文算法的 Horizons 核对，本次沿用前文的适用范围与精度限制。
 
 消息入口测试模拟了 AstrBot API，尚未加载真实 AstrBot，也未向 QQ/OneBot 发送图片。实际消息平台的插件加载、依赖安装、首次下载和回图仍需用户联合验收。本次按授权创建本地提交，并在根基准仓库按实际插件状态同步迁移清单；不推送、发布或部署。
+
+## 0.1.1 · 核心依赖保护与首次返回修复
+
+用户提供的 AstrBot `4.28.1` 运行日志表明，插件固定的 `Pillow==11.3.0` 与受保护的核心 `pillow==12.3.0` 冲突，插件更新被阻止。已改为 `Pillow>=11.3.0,<13`，允许沿用核心版本。按官方 `v4.28.1` 依赖声明核对，另一项共同依赖 httpx 的 `0.28.1` 满足核心要求，本次未改变其他库版本。依赖文件注释改为 ASCII，同时消除本地 Windows pip 默认 GBK 解码时实际复现的读取失败。
+
+进一步核对官方 [调度器](https://github.com/AstrBotDevs/AstrBot/blob/v4.28.1/astrbot/core/pipeline/scheduler.py)、[事件方法](https://github.com/AstrBotDevs/AstrBot/blob/v4.28.1/astrbot/core/platform/astr_message_event.py)与 [调用包装](https://github.com/AstrBotDevs/AstrBot/blob/v4.28.1/astrbot/core/pipeline/context_utils.py)，发现旧入口在 `stop_event()` 后 `yield` 准备提示，调度器不会继续迭代到首次计算。入口改为普通异步协程，所有提示和图片均通过固定会话路由发送，不在停止事件后暂停生成器。
+
+`tools/verify_astrbot_pipeline.py` 使用该版本的实际调度、事件和调用方法，消息传输与计算启动用最小协作者隔离。旧入口首次计算启动数为 0；修复后的首次请求先提示再启动一次计算并返回图片。帮助、热启动、无效输入及禁用状态也通过，报告与官方源码 SHA-256 在 `data/bot-validation/pipeline-4.28.1.json`。这是框架控制流程回归，不等同于真实 QQ 发送。
+
+本地环境升级至 Pillow `12.3.0` 后，**117 项 pytest 全部通过**，Ruff 检查、格式及 Python 语法检查通过；四个前缀的 20 个解析器案例仍通过。以 `Pillow==12.3.0` 作为约束执行 pip dry-run，所有依赖已满足，安装计划为空，没有安装或降级核心 Pillow 的计划；报告位于 `data/bot-validation/dependency-resolution.json`。实际北京 PNG 在 `pillow-12.3.0.png`，已人工查看。测试自己的历表与线程按原有生命周期关闭，未结束用户正在运行的本地调试进程。
+
+修复版本为 `0.1.1`。运行端仍需安装这一版本并重载后验证 `/xt help` 和 `/星图`；本轮没有修改运行端 AstrBot、降级核心依赖或声称群内回图已恢复。

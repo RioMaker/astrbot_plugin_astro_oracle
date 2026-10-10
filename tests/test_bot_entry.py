@@ -116,7 +116,9 @@ class Context:
 
 
 async def consume(plugin, event, content):
-    return [value async for value in plugin.star_chart(event, content)]
+    start = len(plugin.context.sent)
+    await plugin.star_chart(event, content)
+    return [c.text for _, chain in plugin.context.sent[start:] for c in chain if hasattr(c, "text")]
 
 
 def test_one_dedicated_command_registers_every_prefix_and_framework_data_dir(adapter):
@@ -135,7 +137,9 @@ def test_help_and_syntax_errors_do_not_prepare_data(adapter, content):
     event = Event()
     result = asyncio.run(consume(plugin, event, content))
     assert result and event.stopped
-    assert not plugin._charts.calls and not plugin.context.sent
+    assert not plugin._charts.calls
+    assert len(plugin.context.sent) == 1
+    assert plugin.context.sent[0][0] == event.unified_msg_origin
     if content in {"help", "帮助"}:
         assert "13:27:41" in result[0]
 
@@ -211,5 +215,8 @@ def test_resource_progress_and_terminate(adapter):
     plugin._charts.ready = False
     values = asyncio.run(consume(plugin, Event(), "place 上海"))
     assert "准备星图资源" in values[0]
+    assert len(plugin._charts.calls) == 1
+    assert len(plugin.context.sent) == 2
+    assert plugin.context.sent[-1][1][0].png.startswith(b"png-")
     asyncio.run(plugin.terminate())
     assert plugin._charts.closed
