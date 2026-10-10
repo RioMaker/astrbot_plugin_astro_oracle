@@ -11,7 +11,7 @@ from pathlib import Path
 
 import httpx
 
-from .resources import DATA_DIR, sha256_file
+from .resources import DATA_DIR, ResourceDownloadError, sha256_file
 
 SOURCES = {
     "hipparcos": ("hip_main.dat", "https://cdsarc.cds.unistra.fr/ftp/cats/I/239/hip_main.dat"),
@@ -32,6 +32,14 @@ SOURCES = {
         "geonames-readme.txt",
         "https://download.geonames.org/export/dump/readme.txt",
     ),
+}
+SOURCE_LABELS = {
+    "hipparcos": "Hipparcos 恒星目录",
+    "hipparcos_readme": "Hipparcos 目录说明",
+    "constellations": "Stellarium 星座图形",
+    "culture_license": "Stellarium 星座许可说明",
+    "cities": "GeoNames 地点库",
+    "cities_readme": "GeoNames 地点库说明",
 }
 
 
@@ -155,7 +163,9 @@ async def prepare_sky(data_dir=DATA_DIR):
         json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {}
     )
     records = manifest.setdefault("sources", {})
-    async with httpx.AsyncClient(follow_redirects=True, timeout=120) as client:
+    async with httpx.AsyncClient(
+        follow_redirects=True, timeout=httpx.Timeout(120, connect=20)
+    ) as client:
         for key, (filename, url) in SOURCES.items():
             path = directory / filename
             record = records.get(key)
@@ -166,8 +176,10 @@ async def prepare_sky(data_dir=DATA_DIR):
                 try:
                     await download(client, path, url)
                     break
-                except (httpx.HTTPError, OSError):
+                except (httpx.HTTPError, OSError) as exc:
                     if attempt == 2:
+                        if isinstance(exc, httpx.HTTPError):
+                            raise ResourceDownloadError(SOURCE_LABELS[key], exc) from exc
                         raise
                     await asyncio.sleep(1)
             records[key] = {

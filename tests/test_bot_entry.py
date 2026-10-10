@@ -6,6 +6,7 @@ import sys
 import types
 from pathlib import Path
 
+import httpx
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -215,8 +216,27 @@ def test_resource_progress_and_terminate(adapter):
     plugin._charts.ready = False
     values = asyncio.run(consume(plugin, Event(), "place 上海"))
     assert "准备星图资源" in values[0]
+    assert "首次" not in values[0]
+    assert "会复用" in values[0]
     assert len(plugin._charts.calls) == 1
     assert len(plugin.context.sent) == 2
     assert plugin.context.sent[-1][1][0].png.startswith(b"png-")
     asyncio.run(plugin.terminate())
     assert plugin._charts.closed
+
+
+def test_resource_timeout_explains_source_and_reuses_cache_on_each_attempt(adapter):
+    module, _ = adapter
+    plugin = module.AstroOraclePlugin(Context(), {})
+    plugin._charts.ready = False
+    plugin._charts.error = module.ResourceDownloadError(
+        "JPL DE440s 历表", httpx.ConnectTimeout("private proxy details must not be echoed")
+    )
+    for _ in range(2):
+        replies = asyncio.run(consume(plugin, Event(), ""))
+        assert len(replies) == 2
+        assert "首次" not in replies[0]
+        assert "JPL DE440s" in replies[1] and "连接下载站点超时" in replies[1]
+        assert "离线资源包" in replies[1] and "会复用" in replies[1]
+        assert "private proxy" not in replies[1]
+    assert all(not hasattr(c, "png") for _, chain in plugin.context.sent for c in chain)

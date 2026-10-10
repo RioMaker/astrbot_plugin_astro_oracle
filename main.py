@@ -12,6 +12,7 @@ from astrbot.core.utils.astrbot_path import get_astrbot_data_path
 
 from .local_core.bot_commands import ChartSettings, help_text, parse_request
 from .local_core.bot_service import ChartService
+from .local_core.resources import ResourceDownloadError
 
 PLUGIN_NAME = "astrbot_plugin_astro_oracle"
 
@@ -50,11 +51,25 @@ class AstroOraclePlugin(Star):
             await self.context.send_message(
                 origin,
                 MessageChain(
-                    [Plain("正在准备星图资源。首次使用需下载并校验公共天文数据，请稍候。")]
+                    [Plain("正在检查并准备星图资源，已完成下载并通过校验的文件会复用，请稍候。")]
                 ),
             )
         try:
             png = await self._charts.generate(request, settings, now)
+        except ResourceDownloadError as exc:
+            logger.exception("星图公共资源下载失败")
+            await self.context.send_message(
+                origin,
+                MessageChain(
+                    [
+                        Plain(
+                            f"{exc}\n请检查运行端网络，或将离线资源包解压到插件数据目录后重试。"
+                            "已缓存的完整资源会复用。"
+                        )
+                    ]
+                ),
+            )
+            return
         except ValueError as exc:
             await self.context.send_message(
                 origin, MessageChain([Plain(f"{exc}\n使用 /星图 help 查看帮助。")])

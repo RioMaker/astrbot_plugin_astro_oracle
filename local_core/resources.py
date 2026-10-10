@@ -16,6 +16,25 @@ MODEL_URL = "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/spk/planets/de44
 REQUIRED_TARGETS = (10, 199, 299, 399, 4, 5, 6, 7, 8)
 
 
+class ResourceDownloadError(RuntimeError):
+    """公共资源下载失败；只对用户展示资源名称和安全的失败类型。"""
+
+    def __init__(self, resource: str, error: httpx.HTTPError):
+        if isinstance(error, httpx.ConnectTimeout):
+            reason = "连接下载站点超时"
+        elif isinstance(error, httpx.ReadTimeout):
+            reason = "读取下载内容超时"
+        elif isinstance(error, httpx.ConnectError):
+            reason = "无法连接下载站点"
+        elif isinstance(error, httpx.HTTPStatusError):
+            reason = f"下载站点返回 HTTP {error.response.status_code}"
+        else:
+            reason = "网络请求失败"
+        self.resource = resource
+        self.reason = reason
+        super().__init__(f"{resource}下载失败：{reason}。")
+
+
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as stream:
@@ -53,7 +72,9 @@ async def prepare(data_dir: Path = DATA_DIR) -> Path:
         partial = data_dir / "de440s.partial.bsp"
         print(f"下载 JPL DE440s：{MODEL_URL}", flush=True)
         try:
-            async with httpx.AsyncClient(follow_redirects=True, timeout=120) as client:
+            async with httpx.AsyncClient(
+                follow_redirects=True, timeout=httpx.Timeout(120, connect=20)
+            ) as client:
                 async with client.stream("GET", MODEL_URL) as response:
                     response.raise_for_status()
                     size, reported = 0, 0
@@ -68,6 +89,8 @@ async def prepare(data_dir: Path = DATA_DIR) -> Path:
                                 reported = size
             inspect_kernel(partial)
             partial.replace(target)
+        except httpx.HTTPError as exc:
+            raise ResourceDownloadError("JPL DE440s 历表", exc) from exc
         finally:
             partial.unlink(missing_ok=True)
     manifest = {

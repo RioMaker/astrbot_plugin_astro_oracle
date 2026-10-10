@@ -16,6 +16,7 @@ from typing import cast
 import httpx
 
 from local_core.bot_commands import ChartSettings, help_text, parse_request
+from local_core.resources import ResourceDownloadError
 
 ROOT = Path(__file__).resolve().parents[1]
 REFERENCE = ROOT / "data" / "astrbot-reference"
@@ -77,6 +78,7 @@ def prepare_namespace():
         "ChartSettings": ChartSettings,
         "parse_request": parse_request,
         "help_text": help_text,
+        "ResourceDownloadError": ResourceDownloadError,
         "Plain": lambda text: types.SimpleNamespace(text=text),
         "Image": types.SimpleNamespace(fromBytes=lambda png: types.SimpleNamespace(png=png)),
         "logger": types.SimpleNamespace(
