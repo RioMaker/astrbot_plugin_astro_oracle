@@ -10,10 +10,10 @@ from skyfield.errors import EphemerisRangeError
 
 from .bot_commands import ChartSettings, parse_request, resolve_place, resolve_time
 from .sky_chart import clipped_arc, direction, project
-from .ziwei_palaces import build_palace_layer, locate_sector
+from .ziwei_palaces import build_palace_layer, locate_sector, project_north_pole
 from .ziwei_photometry import luminary_photometry
 
-PROFILE_VERSION = "ziwei-real-sky-preview-v3"
+PROFILE_VERSION = "ziwei-real-sky-preview-v4"
 SOURCES = {
     "north": "https://www.gsstk.org.tw/?act=menuinfo&cmd=detail&mi_id=20201021054"
     "&ml_id=20201021010",
@@ -203,8 +203,10 @@ def compute_ziwei(sky, content, settings=None, now=None):
             )
         else:
             target = sky.core.kernel[obj["naif_id"]]
-        ra, _, _ = here.observe(target).apparent().radec(epoch="date")
+        ra, dec, _ = here.observe(target).apparent().radec(epoch="date")
         obj["ra_date_deg"] = float(ra.hours) * 15
+        obj["dec_date_deg"] = float(dec.degrees)
+        obj["display_xy"] = project_north_pole(obj["ra_date_deg"], obj["dec_date_deg"])
         sector = locate_sector(obj["ra_date_deg"], palace_layer["sectors"])
         obj.update(
             research_branch=sector["branch"],
@@ -227,12 +229,27 @@ def compute_ziwei(sky, content, settings=None, now=None):
         "hemispheres": scenes,
         "single_chart": {
             "objects": objects,
-            "horizon_radius": 0.5,
-            "projection": "full_sky_azimuthal_equidistant",
-            "center": "zenith",
-            "north": "up",
-            "east": "left",
-            "edge": "nadir_limit",
+            "projection": "north_pole_azimuthal_equidistant",
+            "center": "north_celestial_pole",
+            "edge": "south_celestial_pole_limit",
+            "diagnostic_projection": {
+                "type": "full_sky_azimuthal_equidistant",
+                "center": "zenith",
+                "north": "up",
+                "east": "left",
+                "edge": "nadir_limit",
+                "horizon_radius": 0.5,
+                "objects_xy_field": "single_xy",
+            },
+            "display_projection": {
+                "type": "north_pole_azimuthal_equidistant",
+                "center": "north_celestial_pole",
+                "edge": "south_celestial_pole_limit",
+                "angle": "true_right_ascension_of_date",
+                "radius": "polar_distance_divided_by_180",
+                "objects_xy_field": "display_xy",
+                "horizon": "topocentric_altitude_zero_curve",
+            },
         },
         "palace_layer": palace_layer,
         "time_note": note,
@@ -245,7 +262,7 @@ def compute_ziwei(sky, content, settings=None, now=None):
             "南斗、左辅采用文档列出的展示对应，不宣称唯一历史定论。",
             "只绘选定天体，不绘背景恒星及其他行星。",
             "明暗表示地平线上下的显示状态，不表示斗数庙旺，也不保证肉眼可见。",
-            "单盘是天顶中心的全天投影；天底为外缘极限，不能按图面积比较半球大小。",
+            "图面为北天极中心的全天投影；外缘为南天极极限，明暗按观测点真实高度划分。",
             "恒星点亮度按星表 V 星等；强调环和标签只表示主辅类别。",
             "日月 V 星等使用无大气近似，未模拟食、月面冲日增亮或实际天空背景。",
             "宫界是晋书宿度的今星锚定研究模型，尚未复原古历元的精确宫界。",

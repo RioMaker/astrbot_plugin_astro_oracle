@@ -14,6 +14,7 @@ from local_core.ziwei_chart import (
     parse_preview_request,
     project_all_sky,
 )
+from local_core.ziwei_palace_display import box_inside_palace, palace_region_map
 from local_core.ziwei_single_renderer import render_ziwei_png
 
 
@@ -74,11 +75,15 @@ def test_selected_objects_are_complete_unique_and_match_existing_real_coordinate
         "/star -33.8688,151.2093 20261012120000",
         "/xingtu 0,0 20261012080000 tz=UTC",
         "/xt 89,0 20261012000000 tz=UTC",
+        "/xt -90,0 20261012000000 tz=UTC",
+        "/xt 北京 20010124000000",
+        "/xt 北京 18500101000000",
     ],
 )
 def test_real_previews_keep_all_labels_in_bounds_without_overlap(sky, command):
     data = compute_ziwei(sky, command)
     png, layouts = render_ziwei_png(data)
+    regions = palace_region_map(data["palace_layer"])
     with Image.open(io.BytesIO(png)) as image:
         assert image.format == "PNG" and image.size == (1680, 1510)
     for labels in layouts.values():
@@ -90,6 +95,13 @@ def test_real_previews_keep_all_labels_in_bounds_without_overlap(sky, command):
         for index, label in enumerate(labels):
             box = label["box"]
             assert 0 <= box[0] < box[2] <= 1160 and 0 <= box[1] < box[3] <= 1160
+            if label.get("kind") in {"palace", "symbolic"}:
+                assert box_inside_palace(box, label["branch"], regions), label["label"]
+                assert label["placement"] == "inside_region"
+            if label.get("kind") == "symbolic":
+                marker = label["marker_box"]
+                assert box[0] <= marker[0] < marker[2] <= box[2]
+                assert box[1] <= marker[1] < marker[3] <= box[3]
             for other in labels[index + 1 :]:
                 b = other["box"]
                 assert box[2] < b[0] or b[2] < box[0] or box[3] < b[1] or b[3] < box[1]

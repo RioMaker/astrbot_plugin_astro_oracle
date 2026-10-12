@@ -37,6 +37,7 @@ async def preview(args):
                     "ziwei_palaces.py",
                     "ziwei_photometry.py",
                     "ziwei_single_renderer.py",
+                    "ziwei_palace_display.py",
                 )
             },
         }

@@ -195,6 +195,7 @@ def build_palace_layer(sky, here, t, site, epoch_local, project):
         "profile": PROFILE,
         "status": "research_current_anchor_not_historical_recovery",
         "source": SOURCE,
+        "projection_context": {"latitude_deg": site["latitude"], "sidereal_deg": sidereal},
         "symbolic_malefics": symbols,
         "assignment": assignment,
         "sectors": boundaries,
@@ -205,6 +206,13 @@ def build_palace_layer(sky, here, t, site, epoch_local, project):
         "label_basis": "每区赤道中点为文字引线锚，不是物理星体或天空面积中心",
         "algorithm_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
     }
+
+
+def project_north_pole(ra_deg, dec_deg):
+    """北天极中心全天等距投影；日期真赤经 0h 在上、6h 在左。"""
+    radius = (90 - dec_deg) / 180
+    angle = math.radians(ra_deg)
+    return [-radius * math.sin(angle), -radius * math.cos(angle)]
 
 
 def locate_sector(ra_deg, sectors):
