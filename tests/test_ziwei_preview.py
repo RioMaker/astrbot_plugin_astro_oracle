@@ -57,7 +57,8 @@ def test_selected_objects_are_complete_unique_and_match_existing_real_coordinate
                 assert obj["xy"] == pytest.approx(old["xy"], abs=1e-12)
                 assert obj["altitude_deg"] == old["altitude_deg"]
             else:
-                assert obj["magnitude"] is None
+                assert math.isfinite(obj["magnitude"])
+                assert "估算" in obj["magnitude_quality"]
                 assert obj["naif_id"] == (10 if obj["kind"] == "sun" else 301)
         for group in scene["constellations"]:
             assert all(math.hypot(*xy) <= 1 + 1e-10 for line in group["lines"] for xy in line)
@@ -79,10 +80,12 @@ def test_real_previews_keep_all_labels_in_bounds_without_overlap(sky, command):
     data = compute_ziwei(sky, command)
     png, layouts = render_ziwei_png(data)
     with Image.open(io.BytesIO(png)) as image:
-        assert image.format == "PNG" and image.size == (1680, 1410)
+        assert image.format == "PNG" and image.size == (1680, 1510)
     for labels in layouts.values():
         assert {label["key"] for label in labels} == {
             obj["key"] for obj in data["single_chart"]["objects"]
+        } | {f"palace:{s['branch']}" for s in data["palace_layer"]["sectors"]} | {
+            s["key"] for s in data["palace_layer"]["symbolic_malefics"]
         }
         for index, label in enumerate(labels):
             box = label["box"]

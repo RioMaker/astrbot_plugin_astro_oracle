@@ -2,3 +2,5 @@
 pytest==8.4.2
 playwright==1.63.0
 fonttools==4.59.2
+# Local Zi Wei preview calendar only; the AstrBot runtime does not import it.
+lunar-python==1.4.8

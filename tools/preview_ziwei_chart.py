@@ -28,6 +28,17 @@ async def preview(args):
             "data": data,
             "label_layout": layout,
             "image_sha256": hashlib.sha256(png).hexdigest(),
+            "code_sha256": {
+                name: hashlib.sha256(
+                    (Path(__file__).resolve().parents[1] / "local_core" / name).read_bytes()
+                ).hexdigest()
+                for name in (
+                    "ziwei_chart.py",
+                    "ziwei_palaces.py",
+                    "ziwei_photometry.py",
+                    "ziwei_single_renderer.py",
+                )
+            },
         }
         args.output.with_suffix(".json").write_text(
             json.dumps(audit, ensure_ascii=False, indent=2, allow_nan=False) + "\n",
@@ -41,6 +52,8 @@ async def preview(args):
                         o["major"] for s in data["hemispheres"].values() for o in s["objects"]
                     ),
                     "objects": sum(len(s["objects"]) for s in data["hemispheres"].values()),
+                    "palaces": len(data["palace_layer"]["sectors"]),
+                    "symbolic_malefics": len(data["palace_layer"]["symbolic_malefics"]),
                 }
             )
         )

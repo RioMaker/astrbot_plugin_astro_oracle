@@ -30,3 +30,9 @@ Skyfield 使用 Mallama & Hilton 2018，[Computing Apparent Planetary Magnitudes
 - **Pillow**（兼容范围 `>=11.3.0,<13`）：HPND / PIL Software License，通过依赖安装使用。保留 AstrBot 核心允许的已安装版本，不强制降级。来源 <https://github.com/python-pillow/Pillow>。
 - **AstroSans.otf**：Noto Sans CJK SC Regular 的裁剪、重命名版本，采用 SIL OFL 1.1，原版权保留在字体元数据中。许可见 `assets/fonts/LICENSE.txt`，官方来源与原始/输出 SHA-256 见 `assets/fonts/provenance.json`。字体包含常用中日韩文字、拉丁文字与显示标点，可在无系统中文字体的环境使用。来源 <https://github.com/notofonts/noto-cjk>。构建脚本 `tools/build_font.py` 需要 fontTools 4.59.2（MIT），运行插件不需要该工具。
 - 图片中的星座图形沿用本文已列明的 Stellarium Sky & Telescope 数据许可 CC BY-SA 2.0，保留作者、来源与许可链接。
+
+## 紫微星名本地研究预览
+
+- 本地安命历法开发依赖 `lunar-python==1.4.8`，作者 6tail，MIT，来源 <https://github.com/6tail/lunar-python>。通过开发依赖安装，不由正式 AstrBot 入口导入。
+- 太阳 V 星等基准与距离关系参考 [NRAO 教学资料](https://www.aoc.nrao.edu/~smyers/courses/astro01/L23.html)。月球相位光度参考 Krisciunas & Schaefer 1991, PASP 103, 1033–1039，[论文式 9](https://articles.adsabs.harvard.edu/pdf/1991PASP..103.1033K)，另作观测距离的平方反比修正。独立实现公式，保留估算性质，未将论文或书籍全文纳入插件。
+- 星名和 HIP 的核对参考 Stellarium 中国星空目录；《晋书》《紫微斗数全书》等古籍只作明确注明版本的研究依据。书页核对与候选证据见 [文献核对](docs/ZIWEI_LITERATURE.md)。研究资料保存在忽略目录，不随插件打包。

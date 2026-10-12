@@ -5,13 +5,15 @@ import math
 from datetime import datetime, timezone
 from pathlib import Path
 
-from skyfield.api import wgs84
+from skyfield.api import Star, wgs84
 from skyfield.errors import EphemerisRangeError
 
 from .bot_commands import ChartSettings, parse_request, resolve_place, resolve_time
 from .sky_chart import clipped_arc, direction, project
+from .ziwei_palaces import build_palace_layer, locate_sector
+from .ziwei_photometry import luminary_photometry
 
-PROFILE_VERSION = "ziwei-real-sky-preview-v2"
+PROFILE_VERSION = "ziwei-real-sky-preview-v3"
 SOURCES = {
     "north": "https://www.gsstk.org.tw/?act=menuinfo&cmd=detail&mi_id=20201021054"
     "&ml_id=20201021010",
@@ -127,6 +129,7 @@ def compute_ziwei(sky, content, settings=None, now=None):
             mapping=mapping,
             key=f"hip:{hip}",
             kind="star",
+            magnitude_quality="Hipparcos Johnson V 星表值",
         )
         hemisphere = "upper" if star["altitude_deg"] >= 0 else "lower"
         scenes[hemisphere]["objects"].append(star)
@@ -138,7 +141,9 @@ def compute_ziwei(sky, content, settings=None, now=None):
     try:
         here = observer.at(t)
         for name, key, naif in (("太阳", "sun", 10), ("太阴", "moon", 301)):
-            alt, az, _ = here.observe(sky.core.kernel[naif]).apparent().altaz()
+            astrometric = here.observe(sky.core.kernel[naif])
+            apparent = astrometric.apparent()
+            alt, az, _ = apparent.altaz()
             a, z = float(alt.degrees), float(az.degrees)
             hemisphere = "upper" if a >= 0 else "lower"
             scenes[hemisphere]["objects"].append(
@@ -152,7 +157,7 @@ def compute_ziwei(sky, content, settings=None, now=None):
                     "target_kind": "body_center",
                     "group": "luminaries",
                     "mapping": "日月名称",
-                    "magnitude": None,
+                    **luminary_photometry(astrometric, sky.core.sun, key),
                     "altitude_deg": a,
                     "azimuth_deg": z,
                     "xy": project(a, z, hemisphere),
@@ -184,6 +189,28 @@ def compute_ziwei(sky, content, settings=None, now=None):
         for scene in scenes.values()
         for obj in scene["objects"]
     ]
+    palace_layer = build_palace_layer(sky, here, t, site, original["epoch_local"], project_all_sky)
+    for obj in objects:
+        if obj["kind"] == "star":
+            row = sky.rows[sky.indices[obj["hip"]]]
+            target = Star(
+                ra_hours=row[2],
+                dec_degrees=row[3],
+                parallax_mas=row[4],
+                ra_mas_per_year=row[5],
+                dec_mas_per_year=row[6],
+                epoch=sky.core.ts.J(1991.25),
+            )
+        else:
+            target = sky.core.kernel[obj["naif_id"]]
+        ra, _, _ = here.observe(target).apparent().radec(epoch="date")
+        obj["ra_date_deg"] = float(ra.hours) * 15
+        sector = locate_sector(obj["ra_date_deg"], palace_layer["sectors"])
+        obj.update(
+            research_branch=sector["branch"],
+            research_palace=sector["name"],
+            magnitude_scope="无大气、无遮挡；不是实际地面测光",
+        )
     return {
         **{
             key: original[key]
@@ -207,6 +234,7 @@ def compute_ziwei(sky, content, settings=None, now=None):
             "east": "left",
             "edge": "nadir_limit",
         },
+        "palace_layer": palace_layer,
         "time_note": note,
         "timezone": zone,
         "site_source": source,
@@ -219,7 +247,8 @@ def compute_ziwei(sky, content, settings=None, now=None):
             "明暗表示地平线上下的显示状态，不表示斗数庙旺，也不保证肉眼可见。",
             "单盘是天顶中心的全天投影；天底为外缘极限，不能按图面积比较半球大小。",
             "恒星点亮度按星表 V 星等；强调环和标签只表示主辅类别。",
-            "日月星等未计算，符号只定位，不伪造亮度或当天月相。",
+            "日月 V 星等使用无大气近似，未模拟食、月面冲日增亮或实际天空背景。",
+            "宫界是晋书宿度的今星锚定研究模型，尚未复原古历元的精确宫界。",
             "上下半球、折射、自行及实际可见性定义沿用普通星图。",
         ],
         "provenance": {
