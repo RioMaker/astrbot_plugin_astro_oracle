@@ -11,7 +11,7 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 from .image_renderer import SCALE
 
-STYLE_PROFILE = "witchcore-real-sky-v1"
+STYLE_PROFILE = "witchcore-palace-ledger-v2"
 PURPLE = "#4a1942"
 MIDNIGHT = "#0d0b14"
 GOLD = "#c9a74e"
@@ -64,7 +64,7 @@ def stardust(image):
     draw = ImageDraw.Draw(image, "RGBA")
     rng = random.Random(412)
     for _ in range(230):
-        x, y = rng.uniform(22, 1658), rng.uniform(12, 1488)
+        x, y = rng.uniform(22, image.width / SCALE - 22), rng.uniform(12, image.height / SCALE - 22)
         if math.hypot(x - 580, y - 756) < 520 or (x > 1170 and 176 < y < 1328):
             continue
         r = rng.choice([0.6, 0.8, 1.1]) * SCALE
@@ -75,10 +75,19 @@ def stardust(image):
 def card(image, box):
     """方角塔罗纸牌式细金边、暗色内底与柔和外阴影。"""
     bounds = tuple(round(v * SCALE) for v in box)
-    shadow = Image.new("RGBA", image.size)
-    ImageDraw.Draw(shadow).rectangle(bounds, fill=(0, 0, 0, 160))
+    padding = 24 * SCALE
+    origin = (max(0, bounds[0] - padding), max(0, bounds[1] - padding))
+    end = (min(image.width, bounds[2] + padding), min(image.height, bounds[3] + padding))
+    shadow = Image.new("RGBA", (end[0] - origin[0], end[1] - origin[1]))
+    local_bounds = (
+        bounds[0] - origin[0],
+        bounds[1] - origin[1],
+        bounds[2] - origin[0],
+        bounds[3] - origin[1],
+    )
+    ImageDraw.Draw(shadow).rectangle(local_bounds, fill=(0, 0, 0, 160))
     shadow = shadow.filter(ImageFilter.GaussianBlur(8 * SCALE))
-    image.paste(shadow, (0, 0), shadow)
+    image.paste(shadow, origin, shadow)
     draw = ImageDraw.Draw(image, "RGBA")
     draw.rectangle(bounds, fill=(13, 11, 20, 230), outline=(201, 167, 78, 77), width=SCALE)
     x1, y1, x2, y2 = box
@@ -108,12 +117,12 @@ def rune_title(image, xy, value, size=40):
     image.paste(ink, (0, 0), ink)
 
 
-def moon_ornament(draw):
+def moon_ornament(draw, anchor_x=1480):
     """三个装饰月相，不绑定观测时刻。"""
     for i in range(3):
-        x, y, r = (1480 + i * 48) * SCALE, 120 * SCALE, 10 * SCALE
+        x, y, r = (anchor_x + i * 48) * SCALE, 120 * SCALE, 10 * SCALE
         draw.ellipse((x - r, y - r, x + r, y + r), outline=GOLD, width=SCALE)
         if i != 1:
             offset = 5 * SCALE if i == 0 else -5 * SCALE
             draw.ellipse((x - r + offset, y - r, x + r + offset, y + r), fill=PURPLE)
-    text(draw, (1470, 144), "月 相 纹 饰", 12, SECONDARY)
+    text(draw, (anchor_x - 10, 144), "月 相 纹 饰", 12, SECONDARY)

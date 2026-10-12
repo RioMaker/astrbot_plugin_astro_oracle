@@ -7,8 +7,7 @@ from datetime import datetime
 from PIL import Image, ImageDraw
 
 from .image_renderer import SCALE, visual_style
-from .ziwei_chart import MAJOR_ORDER
-from .ziwei_label_layout import choose_object_label
+from .ziwei_label_layout import choose_number_marker, object_number
 from .ziwei_palace_display import (
     DISPLAY_PROFILE,
     box_inside_palace,
@@ -18,6 +17,7 @@ from .ziwei_palace_display import (
     palace_region_map,
     prepare_display_layer,
 )
+from .ziwei_palace_ledger import HEIGHT, WIDTH, draw_palace_ledger
 from .ziwei_theme import (
     DIM_GOLD,
     GOLD,
@@ -101,7 +101,9 @@ def single_panel(objects, layer):
         for curve in sector["curves"]:
             draw.line([point(xy) for xy in curve], fill=color, width=width)
     for curve in horizon_curves(layer):
-        draw.line([point(xy) for xy in curve], fill=(201, 167, 78, 170), width=2 * SCALE)
+        for index, (a, b) in enumerate(zip(curve, curve[1:])):
+            if index % 12 < 8:
+                draw.line([point(a), point(b)], fill=(182, 165, 208, 130), width=SCALE)
     for xy, value in (
         ((580, 54), "00h"),
         ((54, 580), "06h"),
@@ -145,30 +147,30 @@ def single_panel(objects, layer):
         reserved.append((582, center - radius * fraction + 7, 679, center - radius * fraction + 32))
     layout = []
     draw_palace_labels(draw, objects, layer, region_map, layout, reserved)
-    object_ink = []
-    for obj in sorted(objects, key=lambda o: (not o["major"], o["key"])):
-        label = choose_object_label(draw, obj, layer, region_map, reserved + dots)
-        size, value, box = label["font_size"], label["label"], label["box"]
-        x, y = box[0] + 3, box[1] + 3
-        width = draw.textlength(value, font=font(size)) / SCALE
-        px, py = (v / SCALE for v in point(obj["display_xy"]))
-        bright = obj["display_state"] == "bright"
-        color = (MAIN if obj["major"] else AUX) if bright else DIM_GOLD
-        endpoint = (min(max(px, x), x + width), min(max(py, y), y + size))
+    markers = []
+    for obj in sorted(objects, key=object_number):
+        label = choose_number_marker(draw, obj, reserved + dots)
+        a, b = label["leader_line"]
         draw.line(
-            [(px * SCALE, py * SCALE), tuple(v * SCALE for v in endpoint)],
-            fill=(201, 167, 78, 180 if bright else 100),
+            [tuple(v * SCALE for v in a), tuple(v * SCALE for v in b)],
+            fill=(201, 167, 78, 45),
             width=SCALE,
         )
-        object_ink.append(((x, y), value, size, color))
-        reserved.append(box)
-        label["leader_line"] = [[px, py], list(endpoint)]
+        reserved.append(label["box"])
         label["style_profile"] = STYLE_PROFILE
         layout.append(label)
-    # 引线先画，文字最后统一覆盖，避免后续引线划过已经写出的星名。
-    for xy, value, size, color in object_ink:
-        text(draw, xy, value, size, color, stroke=2)
-    draw_malefic_symbols(draw, objects, layer, region_map, layout, reserved)
+        markers.append(label)
+    for label in markers:
+        x1, y1, x2, y2 = label["box"]
+        text(
+            draw,
+            ((x1 + x2) / 2, (y1 + y2) / 2),
+            label["number"],
+            14,
+            SECONDARY,
+            anchor="mm",
+            stroke=1,
+        )
     return image, layout
 
 
@@ -239,73 +241,14 @@ def draw_palace_labels(draw, objects, layer, region_map, layout, reserved):
         )
 
 
-def draw_malefic_symbols(draw, objects, layer, region_map, layout, reserved):
-    dots = [
-        (
-            580 + o["display_xy"][0] * 492 - 10,
-            580 + o["display_xy"][1] * 492 - 10,
-            580 + o["display_xy"][0] * 492 + 10,
-            580 + o["display_xy"][1] * 492 + 10,
-        )
-        for o in objects
-    ]
-    for symbol in layer["symbolic_malefics"]:
-        value = symbol["name"] + "[符]"
-        width = draw.textlength(value, font=font(18)) / SCALE
-        sector = next(s for s in layer["sectors"] if s["branch"] == symbol["branch"])
-        chosen = None
-        for _, box, _ in palace_label_candidates(sector, width + 32, 32, preferred_dec=0):
-            if box_inside_palace(box, symbol["branch"], region_map) and all(
-                box[2] < b[0] or b[2] < box[0] or box[3] < b[1] or b[3] < box[1]
-                for b in reserved + dots
-            ):
-                chosen = box
-                break
-        if chosen is None:
-            raise ValueError(f"煞星符号标签无法完整落在本宫：{value}")
-        box = chosen
-        px, py = box[0] + 10, (box[1] + box[3]) / 2
-        xy = [(px - 580) / 492, (py - 580) / 492]
-        draw.polygon(
-            [
-                (px * SCALE, (py - 6) * SCALE),
-                ((px + 6) * SCALE, py * SCALE),
-                (px * SCALE, (py + 6) * SCALE),
-                ((px - 6) * SCALE, py * SCALE),
-            ],
-            fill="#c9a74e",
-        )
-        text(draw, (box[0] + 24, box[1] + 7), value, 18, "#c9a74e", stroke=2)
-        reserved.append(box)
-        layout.append(
-            {
-                "key": symbol["key"],
-                "label": value,
-                "box": list(box),
-                "marker_xy": xy,
-                "marker_box": [px - 9, py - 9, px + 9, py + 9],
-                "kind": "symbolic",
-                "branch": symbol["branch"],
-                "placement": "inside_region",
-                "display_profile": DISPLAY_PROFILE,
-            }
-        )
-
-
 def render_ziwei_png(data):
-    image = background(1680, 1510, scale=SCALE)
+    image = background(WIDTH, HEIGHT, scale=SCALE)
     stardust(image)
-    for box in (
-        (1172, 166, 1648, 755),
-        (1172, 768, 1648, 945),
-        (1172, 954, 1648, 1310),
-        (26, 1342, 1654, 1485),
-    ):
-        card(image, box)
+    card(image, (26, 1342, WIDTH - 26, 1485))
     rune_title(image, (38, 20), "星轨神谕 · 紫微星图", 40)
     draw = ImageDraw.Draw(image)
-    moon_ornament(draw)
-    text(draw, (1638, 43), "北天极星盘 / 十二宫 / 视星等 · 本地测试", 19, SECONDARY, anchor="rt")
+    moon_ornament(draw, anchor_x=1960)
+    text(draw, (WIDTH - 42, 43), "真实方位 / 十二宫说明 · 本地测试", 19, SECONDARY, anchor="rt")
     moment = datetime.fromisoformat(data["epoch_local"])
     site = data["site"]
     fitted_text(
@@ -314,7 +257,7 @@ def render_ziwei_png(data):
         f"{site['label']} · {moment:%Y-%m-%d %H:%M:%S %z} · {data['timezone']}",
         21,
         GOLD,
-        1580,
+        1780,
     )
     fitted_text(
         draw,
@@ -322,7 +265,7 @@ def render_ziwei_png(data):
         f"纬度 {site['latitude']:.5f}° / 经度 {site['longitude']:.5f}° · {data['time_note']}",
         17,
         SECONDARY,
-        1600,
+        1780,
     )
     objects = data["single_chart"]["objects"]
     layer = prepare_display_layer(data["palace_layer"])
@@ -337,77 +280,45 @@ def render_ziwei_png(data):
         )
     else:
         value = assignment["reason"] + "；仅显示星次研究界"
-    fitted_text(draw, (38, 133), value, 16, SECONDARY, 1340)
-    symbols = layer["symbolic_malefics"]
+    fitted_text(draw, (38, 133), value, 16, SECONDARY, 1780)
     disk, layout = single_panel(objects, layer)
     image.paste(disk, (0, 176 * SCALE))
-    text(draw, (1190, 171), "十四主星", 25, MAIN)
-    text(draw, (1190, 211), "星名    V星等    明暗    高度    研究宫", 16, SECONDARY)
-    lookup = {obj["name"]: obj for obj in objects}
-    for index, name in enumerate(MAJOR_ORDER):
-        obj = lookup[name]
-        bright = obj["display_state"] == "bright"
-        y = 250 + index * 35
-        text(draw, (1190, y), name, 20, MAIN if bright else DIM_GOLD)
-        estimated = "~" if obj["kind"] != "star" else ""
-        text(draw, (1264, y + 1), f"{estimated}{obj['magnitude']:+.1f}", 16, SECONDARY)
-        text(draw, (1357, y + 1), "明" if bright else "暗", 17, "#9fbdad" if bright else SECONDARY)
-        text(draw, (1403, y + 1), f"{obj['altitude_deg']:+.1f}°", 16, SECONDARY)
-        text(draw, (1512, y + 1), obj["research_palace"], 17, SECONDARY)
-    text(draw, (1190, 780), "辅星", 23, AUX)
-    for index, name in enumerate(("禄存", "文曲", "左辅")):
-        obj = lookup[name]
-        text(
-            draw,
-            (1190, 819 + index * 32),
-            f"{name} · {'明' if obj['display_state'] == 'bright' else '暗'} · "
-            f"V {obj['magnitude']:+.2f} · {obj['research_palace']}",
-            16,
-            AUX,
-        )
-    text(draw, (1190, 925), "星等越小越亮；~ 为模型估算", 15, SECONDARY)
-    text(draw, (1190, 960), "六煞 · 安星符号", 23, GOLD)
-    for index, symbol in enumerate(symbols):
-        text(
-            draw,
-            (1190, 1005 + index * 34),
-            f"{symbol['name']} · {symbol['branch']} · {symbol['palace']}",
-            19,
-            "#c9a74e",
-        )
-    text(draw, (1190, 1230), "菱形 / [符]：无实体坐标和视星等", 15, SECONDARY)
-    text(draw, (1190, 1270), "浅金线为地平线 · 命宫金边 · 身宫绿边", 15, SECONDARY)
+    ledger = draw_palace_ledger(image, objects, layer)
+    draw = ImageDraw.Draw(image)
+    text(draw, (38, 180), "真实星点 · 方位盘", 24, GOLD)
+    text(draw, (38, 216), "小编号识别星点 · 紫色虚线为地平线（高度 0°）", 14, SECONDARY)
+    text(draw, (1172, 177), "十二宫 · 星曜说明", 26, GOLD)
     text(
         draw,
-        (38, 1355),
-        "明：高度 ≥ 0°，在地平线以上；暗：高度 < 0°，被地球遮挡。"
-        "本图明暗不等同于斗数庙旺落陷或实际肉眼可见性。",
-        16,
-        GOLD,
-    )
-    text(
-        draw,
-        (38, 1387),
-        "* 紫微采用现代北极星展示约定；主星大字，辅星小字。恒星点按 V 星等，日月使用定位符号。",
-        15,
-        SECONDARY,
-    )
-    text(
-        draw,
-        (38, 1419),
-        "北天极中心全天投影 · 半径为极距 · 坐标 ESA Hipparcos / NASA JPL DE440s · "
-        "地点 GeoNames CC BY 4.0 · 盘外星尘与月相为装饰",
+        (1172, 215),
+        "按宫位阅读 · 编号对应左盘 · 方位角：北 0° / 东 90° / 南 180° / 西 270°",
         14,
         SECONDARY,
     )
-    text(
-        draw,
-        (38, 1449),
-        "宫界：晋书主表按当前候选距星锚定的研究示意；命宫等按当地民用时安宫，"
-        "不是已认证古宫界。V星等未计大气、云层、食与天空背景。",
-        14,
-        SECONDARY,
-    )
+    notes = [
+        (
+            "左盘星点保持真实坐标，编号仅用于识别；右侧说明按所属研究宫分组。"
+            "短关联线降低权重，六煞仅在宫卡中标 [符]。",
+            GOLD,
+        ),
+        (
+            "高度 ≥ 0° 为明区，< 0° 为暗区；不等同于斗数庙旺或实际可见性。"
+            "V 等越小越亮，~ 为估算；未计大气、云、食与背景。",
+            SECONDARY,
+        ),
+        (
+            "* 紫微采用现代北极星展示约定 · 坐标 ESA Hipparcos / NASA JPL DE440s · "
+            "地点 GeoNames CC BY 4.0 · 盘外星尘与月相为装饰",
+            SECONDARY,
+        ),
+        (
+            "宫界是晋书宿度的今星锚定研究示意，并非已认证古宫界；"
+            "事项宫按当地民用时安置。金色为主星，紫水晶色为辅星。",
+            SECONDARY,
+        ),
+    ]
+    for index, (value, color) in enumerate(notes):
+        text(draw, (38, 1355 + index * 32), value, 15, color)
     output = io.BytesIO()
-    image.resize((1680, 1510), Image.Resampling.LANCZOS).save(output, format="PNG")
-    return output.getvalue(), {"single": layout}
+    image.resize((WIDTH, HEIGHT), Image.Resampling.LANCZOS).save(output, format="PNG")
+    return output.getvalue(), {"single": layout, "palace_ledger": ledger}

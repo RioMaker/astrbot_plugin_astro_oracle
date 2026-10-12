@@ -1,35 +1,32 @@
-"""密集标签本宫约束及无法容纳时的显式回退。"""
+"""真实星点编号身份、原坐标和归属不因说明布局改变。"""
 
 import hashlib
 import json
 
-import numpy as np
 from PIL import Image, ImageDraw
 
 from local_core.engine import PlanetEngine
 from local_core.sky_chart import SkyChartEngine
 from local_core.ziwei_chart import compute_ziwei
-from local_core.ziwei_label_layout import choose_object_label
-from local_core.ziwei_palace_display import prepare_display_layer
+from local_core.ziwei_label_layout import choose_number_marker, object_number
 from local_core.ziwei_theme import FONT
 
 
-def test_no_home_space_uses_explicit_leader_without_reassigning_object():
+def test_number_marker_preserves_identity_position_and_owner():
     core = PlanetEngine()
     try:
         data = compute_ziwei(SkyChartEngine(core), "/xt 北京 20261012200000")
-        obj = data["single_chart"]["objects"][0]
-        before = dict(obj)
-        # 所有候选像素标为圆外，模拟本宫没有可用区域。
-        blocked_regions = np.full((1160, 1160), -1, dtype=np.int8)
         draw = ImageDraw.Draw(Image.new("RGB", (2320, 2320)))
-        label = choose_object_label(
-            draw, obj, prepare_display_layer(data["palace_layer"]), blocked_regions, []
-        )
-        assert label["placement"] == "leader_fallback"
-        assert label["fallback_reason"] == "home_region_full"
-        assert label["branch"] == obj["research_branch"]
-        assert obj == before
+        for obj in data["single_chart"]["objects"]:
+            before = dict(obj)
+            label = choose_number_marker(draw, obj, [])
+            assert label["number"] == object_number(obj)
+            assert label["point_xy"] == obj["display_xy"]
+            assert label["branch"] == obj["research_branch"]
+            assert obj == before
+        assert {object_number(o) for o in data["single_chart"]["objects"]} == {
+            f"{i:02d}" for i in range(1, 18)
+        }
     finally:
         core.close()
 

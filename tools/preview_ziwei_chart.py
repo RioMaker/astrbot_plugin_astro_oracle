@@ -11,6 +11,7 @@ from local_core.engine import PlanetEngine
 from local_core.resources import DATA_DIR, prepare_all
 from local_core.sky_chart import SkyChartEngine
 from local_core.ziwei_chart import compute_ziwei
+from local_core.ziwei_palace_ledger import LEDGER_PROFILE
 from local_core.ziwei_single_renderer import render_ziwei_png
 from local_core.ziwei_theme import FONT, STYLE_PROFILE
 
@@ -32,15 +33,13 @@ async def preview(args):
             "style_profile": STYLE_PROFILE,
             "font_sha256": hashlib.sha256(FONT.read_bytes()).hexdigest(),
             "star_label_summary": {
-                "inside_region": sum(
-                    label.get("kind") == "object" and label["placement"] == "inside_region"
-                    for label in layout["single"]
+                "layout_profile": LEDGER_PROFILE,
+                "palace_entries": sum(
+                    label.get("kind") == "object" for label in layout["palace_ledger"]
                 ),
-                "fallback_objects": [
-                    label["key"]
-                    for label in layout["single"]
-                    if label.get("kind") == "object" and label["placement"] == "leader_fallback"
-                ],
+                "number_markers": sum(
+                    label.get("kind") == "point_number" for label in layout["single"]
+                ),
             },
             "code_sha256": {
                 name: hashlib.sha256(
@@ -53,6 +52,7 @@ async def preview(args):
                     "ziwei_single_renderer.py",
                     "ziwei_palace_display.py",
                     "ziwei_label_layout.py",
+                    "ziwei_palace_ledger.py",
                     "ziwei_theme.py",
                 )
             },

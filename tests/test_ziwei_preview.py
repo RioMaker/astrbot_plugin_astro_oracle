@@ -1,3 +1,4 @@
+import copy
 import io
 import math
 from datetime import datetime, timezone
@@ -15,6 +16,7 @@ from local_core.ziwei_chart import (
     project_all_sky,
 )
 from local_core.ziwei_palace_display import box_inside_palace, palace_region_map
+from local_core.ziwei_palace_ledger import HEIGHT, WIDTH
 from local_core.ziwei_single_renderer import render_ziwei_png
 
 
@@ -82,30 +84,46 @@ def test_selected_objects_are_complete_unique_and_match_existing_real_coordinate
 )
 def test_real_previews_keep_all_labels_in_bounds_without_overlap(sky, command):
     data = compute_ziwei(sky, command)
+    original = copy.deepcopy(data)
     png, layouts = render_ziwei_png(data)
+    assert data == original
     regions = palace_region_map(data["palace_layer"])
+    objects = {o["key"]: o for o in data["single_chart"]["objects"]}
+    palaces = {f"palace:{s['branch']}" for s in data["palace_layer"]["sectors"]}
+    symbols = {s["key"]: s for s in data["palace_layer"]["symbolic_malefics"]}
     with Image.open(io.BytesIO(png)) as image:
-        assert image.format == "PNG" and image.size == (1680, 1510)
+        assert image.format == "PNG" and image.size == (WIDTH, HEIGHT)
+    assert {label["key"] for label in layouts["single"]} == set(objects) | palaces
+    assert {label["key"] for label in layouts["palace_ledger"]} == set(objects) | palaces | set(
+        symbols
+    )
+    marker_numbers = {}
+    for label in layouts["single"]:
+        box = label["box"]
+        assert 0 <= box[0] < box[2] <= 1160 and 0 <= box[1] < box[3] <= 1160
+        if label["kind"] == "palace":
+            assert box_inside_palace(box, label["branch"], regions)
+        else:
+            obj = objects[label["key"]]
+            assert label["kind"] == "point_number"
+            assert label["point_xy"] == obj["display_xy"]
+            assert label["branch"] == obj["research_branch"]
+            assert math.dist(*label["leader_line"]) <= 84
+            marker_numbers[label["key"]] = label["number"]
+    assert len(set(marker_numbers.values())) == 17
+    for label in layouts["palace_ledger"]:
+        box, card = label["box"], label["card_box"]
+        assert card[0] <= box[0] < box[2] <= card[2] <= WIDTH
+        assert card[1] <= box[1] < box[3] <= card[3] <= HEIGHT
+        assert label["placement"] == "palace_card"
+        if label["kind"] == "object":
+            assert label["branch"] == objects[label["key"]]["research_branch"]
+            assert label["number"] == marker_numbers[label["key"]]
+        elif label["kind"] == "symbolic":
+            assert label["branch"] == symbols[label["key"]]["branch"]
     for labels in layouts.values():
-        assert {label["key"] for label in labels} == {
-            obj["key"] for obj in data["single_chart"]["objects"]
-        } | {f"palace:{s['branch']}" for s in data["palace_layer"]["sectors"]} | {
-            s["key"] for s in data["palace_layer"]["symbolic_malefics"]
-        }
         for index, label in enumerate(labels):
             box = label["box"]
-            assert 0 <= box[0] < box[2] <= 1160 and 0 <= box[1] < box[3] <= 1160
-            if label.get("kind") in {"palace", "symbolic", "object"}:
-                assert box_inside_palace(box, label["branch"], regions), label["label"]
-                assert label["placement"] == "inside_region"
-            if label.get("kind") == "object":
-                obj = next(o for o in data["single_chart"]["objects"] if o["key"] == label["key"])
-                assert label["branch"] == obj["research_branch"]
-                assert label["fallback_reason"] is None
-            if label.get("kind") == "symbolic":
-                marker = label["marker_box"]
-                assert box[0] <= marker[0] < marker[2] <= box[2]
-                assert box[1] <= marker[1] < marker[3] <= box[3]
             for other in labels[index + 1 :]:
                 b = other["box"]
                 assert box[2] < b[0] or b[2] < box[0] or box[3] < b[1] or b[3] < box[1]
