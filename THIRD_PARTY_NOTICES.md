@@ -29,6 +29,7 @@ Skyfield 使用 Mallama & Hilton 2018，[Computing Apparent Planetary Magnitudes
 
 - **Pillow**（兼容范围 `>=11.3.0,<13`）：HPND / PIL Software License，通过依赖安装使用。保留 AstrBot 核心允许的已安装版本，不强制降级。来源 <https://github.com/python-pillow/Pillow>。
 - **AstroSans.otf**：Noto Sans CJK SC Regular 的裁剪、重命名版本，采用 SIL OFL 1.1，原版权保留在字体元数据中。许可见 `assets/fonts/LICENSE.txt`，官方来源与原始/输出 SHA-256 见 `assets/fonts/provenance.json`。字体包含常用中日韩文字、拉丁文字与显示标点，可在无系统中文字体的环境使用。来源 <https://github.com/notofonts/noto-cjk>。构建脚本 `tools/build_font.py` 需要 fontTools 4.59.2（MIT），运行插件不需要该工具。
+- **AstroSerif.otf**：仅供紫微本地预览的 Noto Serif CJK SC Regular 裁剪、重命名版本，SIL OFL 1.1；保留原字体版权元数据。固定官方来源为 [notofonts/noto-cjk 的衬线字体](https://github.com/notofonts/noto-cjk/blob/f8d157532fbfaeda587e826d4cd5b21a49186f7c/Serif/OTF/SimplifiedChinese/NotoSerifCJKsc-Regular.otf)，许可见 `assets/fonts/SERIF_LICENSE.txt`，原始及输出 SHA-256 见 `assets/fonts/serif_provenance.json`。使用 `tools/build_ziwei_font.py <原字体> <原许可>` 重建；仅构建使用既有开发依赖 fontTools，不依赖系统字体或新增运行库。普通星图继续使用 AstroSans。
 - 图片中的星座图形沿用本文已列明的 Stellarium Sky & Telescope 数据许可 CC BY-SA 2.0，保留作者、来源与许可链接。
 
 ## 紫微星名本地研究预览

@@ -6,8 +6,9 @@ import numpy as np
 from PIL import Image
 
 from .ziwei_palaces import BRANCHES, project_north_pole
+from .ziwei_theme import background
 
-DISPLAY_PROFILE = "north-pole-palace-wheel-v1"
+DISPLAY_PROFILE = "witchcore-north-pole-palace-wheel-v2"
 PANEL_WIDTH = 1160
 CENTER = 580
 RADIUS = 492
@@ -44,19 +45,18 @@ def palace_region_map(layer):
 
 
 def palace_background(layer, region_map):
-    image = np.empty((PANEL_WIDTH, PANEL_WIDTH, 3), dtype=np.uint8)
-    image[:] = (16, 27, 37)
+    image = np.array(background(PANEL_WIDTH, PANEL_WIDTH, y_offset=176))
     axis = (np.arange(PANEL_WIDTH) + 0.5 - CENTER) / RADIUS
     bright = altitude_at_xy(axis[None, :], axis[:, None], layer["projection_context"]) >= 0
     for index, sector in enumerate(layer["sectors"]):
         branch = BRANCHES.index(sector["branch"])
         inside, outside = (
-            ((19, 45, 56), (22, 29, 41)) if index % 2 == 0 else ((22, 39, 53), (17, 23, 34))
+            ((39, 24, 52), (16, 12, 24)) if index % 2 == 0 else ((47, 26, 57), (22, 14, 29))
         )
         if sector["name"] == "命宫":
-            inside, outside = (50, 45, 37), (33, 31, 32)
+            inside, outside = (57, 43, 31), (31, 24, 25)
         elif sector["body"]:
-            inside, outside = (19, 52, 47), (16, 33, 34)
+            inside, outside = (25, 44, 37), (15, 26, 23)
         selected = region_map == branch
         image[selected & bright] = inside
         image[selected & ~bright] = outside

@@ -95,9 +95,13 @@ def test_real_previews_keep_all_labels_in_bounds_without_overlap(sky, command):
         for index, label in enumerate(labels):
             box = label["box"]
             assert 0 <= box[0] < box[2] <= 1160 and 0 <= box[1] < box[3] <= 1160
-            if label.get("kind") in {"palace", "symbolic"}:
+            if label.get("kind") in {"palace", "symbolic", "object"}:
                 assert box_inside_palace(box, label["branch"], regions), label["label"]
                 assert label["placement"] == "inside_region"
+            if label.get("kind") == "object":
+                obj = next(o for o in data["single_chart"]["objects"] if o["key"] == label["key"])
+                assert label["branch"] == obj["research_branch"]
+                assert label["fallback_reason"] is None
             if label.get("kind") == "symbolic":
                 marker = label["marker_box"]
                 assert box[0] <= marker[0] < marker[2] <= box[2]

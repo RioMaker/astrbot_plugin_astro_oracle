@@ -6,8 +6,9 @@ from datetime import datetime
 
 from PIL import Image, ImageDraw
 
-from .image_renderer import SCALE, fitted_text, font, text, visual_style
+from .image_renderer import SCALE, visual_style
 from .ziwei_chart import MAJOR_ORDER
+from .ziwei_label_layout import choose_object_label
 from .ziwei_palace_display import (
     DISPLAY_PROFILE,
     box_inside_palace,
@@ -17,9 +18,24 @@ from .ziwei_palace_display import (
     palace_region_map,
     prepare_display_layer,
 )
+from .ziwei_theme import (
+    DIM_GOLD,
+    GOLD,
+    HERB,
+    SECONDARY,
+    STYLE_PROFILE,
+    background,
+    card,
+    fitted_text,
+    font,
+    moon_ornament,
+    rune_title,
+    stardust,
+    text,
+)
 
-MAIN = "#ffe0a0"
-AUX = "#81cfc8"
+MAIN = GOLD
+AUX = SECONDARY
 
 
 def single_panel(objects, layer):
@@ -38,8 +54,19 @@ def single_panel(objects, layer):
         r *= SCALE
         draw.ellipse((px - r, py - r, px + r, py + r), **kwargs)
 
-    circle(center * SCALE, center * SCALE, radius, outline="#655b78", width=SCALE)
-    circle(center * SCALE, center * SCALE, radius / 2, outline="#596c8c", width=SCALE)
+    circle(center * SCALE, center * SCALE, radius, outline=GOLD, width=SCALE)
+    circle(center * SCALE, center * SCALE, radius + 7, outline=(201, 167, 78, 80), width=SCALE)
+    for degree in range(0, 360, 5):
+        angle = math.radians(degree)
+        draw.line(
+            [
+                point((-r * math.sin(angle), -r * math.cos(angle)))
+                for r in (1.004, 1.014 if degree % 30 == 0 else 1.009)
+            ],
+            fill=(201, 167, 78, 120),
+            width=SCALE,
+        )
+    circle(center * SCALE, center * SCALE, radius / 2, outline="#7b68ae", width=SCALE)
     for fraction, label in (
         (1 / 6, "赤纬 +60°"),
         (1 / 3, "+30°"),
@@ -52,38 +79,38 @@ def single_panel(objects, layer):
                 center * SCALE,
                 center * SCALE,
                 radius * fraction,
-                outline=(88, 115, 127, 100),
+                outline=(123, 104, 174, 75),
                 width=SCALE,
             )
-        text(draw, (center + 6, center - radius * fraction + 9), label, 14, "#839ca8")
+        text(draw, (center + 6, center - radius * fraction + 9), label, 14, SECONDARY)
     for az in range(0, 360, 30):
         angle = math.radians(az)
         draw.line(
             [point((0, 0)), point((math.sin(angle), -math.cos(angle)))],
-            fill=(135, 164, 176, 35),
+            fill=(201, 167, 78, 28),
             width=SCALE,
         )
     for index, sector in enumerate(sectors):
         previous = sectors[(index - 1) % len(sectors)]
         if sector["name"] == "命宫" or previous["name"] == "命宫":
-            color, width = (222, 189, 128, 190), 2 * SCALE
+            color, width = (201, 167, 78, 190), 2 * SCALE
         elif sector["body"] or previous["body"]:
-            color, width = (111, 189, 161, 185), 2 * SCALE
+            color, width = (61, 139, 110, 185), 2 * SCALE
         else:
-            color, width = (121, 152, 159, 105), SCALE
+            color, width = (201, 167, 78, 77), SCALE
         for curve in sector["curves"]:
             draw.line([point(xy) for xy in curve], fill=color, width=width)
     for curve in horizon_curves(layer):
-        draw.line([point(xy) for xy in curve], fill=(173, 192, 194, 195), width=2 * SCALE)
+        draw.line([point(xy) for xy in curve], fill=(201, 167, 78, 170), width=2 * SCALE)
     for xy, value in (
         ((580, 54), "00h"),
         ((54, 580), "06h"),
         ((1106, 580), "18h"),
         ((580, 1106), "12h"),
     ):
-        text(draw, xy, value, 22, "#a8cbbb", anchor="mm")
-    text(draw, (580, 598), "北天极", 15, "#819aa5", anchor="mm")
-    text(draw, (580, 1140), "外缘为南天极极限 · 方位环为日期真赤经", 15, "#8f9eaa", anchor="mm")
+        text(draw, xy, value, 22, GOLD, anchor="mm")
+    text(draw, (580, 598), "北天极", 15, SECONDARY, anchor="mm")
+    text(draw, (580, 1140), "外缘为南天极极限 · 方位环为日期真赤经", 15, SECONDARY, anchor="mm")
     dots = []
     for obj in objects:
         px, py = point(obj["display_xy"])
@@ -92,9 +119,9 @@ def single_panel(objects, layer):
         color = MAIN if obj["major"] else AUX
         if obj["kind"] == "star":
             r, alpha = visual_style(obj["magnitude"])
-            circle(px, py, r, fill=(226, 235, 247, round(alpha * (255 if bright else 115))))
+            circle(px, py, r, fill=(221, 197, 133, round(alpha * (255 if bright else 115))))
         else:
-            circle(px, py, 4, outline=color if bright else "#80796e", width=SCALE)
+            circle(px, py, 4, outline=color if bright else DIM_GOLD, width=SCALE)
             if obj["kind"] == "sun":
                 for angle in range(0, 360, 45):
                     angle = math.radians(angle)
@@ -103,12 +130,10 @@ def single_panel(objects, layer):
                             (px + r * SCALE * math.cos(angle), py + r * SCALE * math.sin(angle))
                             for r in (9, 13)
                         ],
-                        fill=color if bright else "#80796e",
+                        fill=color if bright else DIM_GOLD,
                         width=SCALE,
                     )
-        circle(
-            px, py, 8 if obj["major"] else 5, outline=color if bright else "#857c6f", width=SCALE
-        )
+        circle(px, py, 8 if obj["major"] else 5, outline=color if bright else DIM_GOLD, width=SCALE)
     reserved = [
         (552, 585, 609, 612),
         (557, 40, 603, 73),
@@ -120,44 +145,30 @@ def single_panel(objects, layer):
         reserved.append((582, center - radius * fraction + 7, 679, center - radius * fraction + 32))
     layout = []
     draw_palace_labels(draw, objects, layer, region_map, layout, reserved)
-    draw_malefic_symbols(draw, objects, layer, region_map, layout, reserved)
+    object_ink = []
     for obj in sorted(objects, key=lambda o: (not o["major"], o["key"])):
-        size = 25 if obj["major"] else 17
-        value = obj["name"] + ("*" if obj["name"] == "紫微" else "")
+        label = choose_object_label(draw, obj, layer, region_map, reserved + dots)
+        size, value, box = label["font_size"], label["label"], label["box"]
+        x, y = box[0] + 3, box[1] + 3
         width = draw.textlength(value, font=font(size)) / SCALE
         px, py = (v / SCALE for v in point(obj["display_xy"]))
-        chosen = None
-        for distance in (18, 36, 55, 80, 112, 150, 195, 245, 300):
-            for angle in (0, 180, 45, 315, 135, 225, 90, 270):
-                angle = math.radians(angle)
-                dx, dy = distance * math.cos(angle), distance * math.sin(angle)
-                x = px + dx - (width if dx < -1 else width / 2 if abs(dx) < 1 else 0)
-                y = py + dy - size / 2
-                box = (x - 3, y - 3, x + width + 3, y + size + 7)
-                if box[0] < 12 or box[2] > 1148 or box[1] < 80 or box[3] > 1080:
-                    continue
-                if all(
-                    box[2] < b[0] or b[2] < box[0] or box[3] < b[1] or b[3] < box[1]
-                    for b in reserved + dots
-                ):
-                    chosen = (x, y, box)
-                    break
-            if chosen:
-                break
-        if chosen is None:
-            raise ValueError(f"单盘标签无法避让：{obj['name']}")
-        x, y, box = chosen
         bright = obj["display_state"] == "bright"
-        color = (MAIN if obj["major"] else AUX) if bright else "#aaa29a"
+        color = (MAIN if obj["major"] else AUX) if bright else DIM_GOLD
         endpoint = (min(max(px, x), x + width), min(max(py, y), y + size))
         draw.line(
             [(px * SCALE, py * SCALE), tuple(v * SCALE for v in endpoint)],
-            fill=(196, 191, 170, 180 if bright else 100),
+            fill=(201, 167, 78, 180 if bright else 100),
             width=SCALE,
         )
-        text(draw, (x, y), value, size, color, stroke=2)
+        object_ink.append(((x, y), value, size, color))
         reserved.append(box)
-        layout.append({"key": obj["key"], "label": value, "box": list(box)})
+        label["leader_line"] = [[px, py], list(endpoint)]
+        label["style_profile"] = STYLE_PROFILE
+        layout.append(label)
+    # 引线先画，文字最后统一覆盖，避免后续引线划过已经写出的星名。
+    for xy, value, size, color in object_ink:
+        text(draw, xy, value, size, color, stroke=2)
+    draw_malefic_symbols(draw, objects, layer, region_map, layout, reserved)
     return image, layout
 
 
@@ -200,20 +211,19 @@ def draw_palace_labels(draw, objects, layer, region_map, layout, reserved):
         box, xy = chosen
         x, y = box[:2]
         if sector["name"] == "命宫":
-            border, color = "#c6a46b", "#f4d194"
+            border, color = GOLD, GOLD
         elif sector["body"]:
-            border, color = "#6fac97", "#b3decf"
+            border, color = HERB, "#9fbdad"
         else:
-            border, color = "#456473", "#b8cbd5"
-        draw.rounded_rectangle(
+            border, color = "#776137", GOLD
+        draw.rectangle(
             tuple(v * SCALE for v in box),
-            radius=7 * SCALE,
-            fill=(12, 24, 32, 235),
+            fill=(13, 11, 20, 235),
             outline=border,
             width=SCALE,
         )
         text(draw, (x + 10, y + 8), value, size, color)
-        text(draw, (x + 10, y + 34), subtitle, 13, "#8fbaab" if sector["body"] else "#7895a4")
+        text(draw, (x + 10, y + 34), subtitle, 13, "#9fbdad" if sector["body"] else SECONDARY)
         reserved.append(box)
         layout.append(
             {
@@ -263,9 +273,9 @@ def draw_malefic_symbols(draw, objects, layer, region_map, layout, reserved):
                 (px * SCALE, (py + 6) * SCALE),
                 ((px - 6) * SCALE, py * SCALE),
             ],
-            fill="#de9d89",
+            fill="#c9a74e",
         )
-        text(draw, (box[0] + 24, box[1] + 7), value, 18, "#de9d89", stroke=2)
+        text(draw, (box[0] + 24, box[1] + 7), value, 18, "#c9a74e", stroke=2)
         reserved.append(box)
         layout.append(
             {
@@ -283,10 +293,19 @@ def draw_malefic_symbols(draw, objects, layer, region_map, layout, reserved):
 
 
 def render_ziwei_png(data):
-    image = Image.new("RGB", (1680 * SCALE, 1510 * SCALE), "#101b25")
+    image = background(1680, 1510, scale=SCALE)
+    stardust(image)
+    for box in (
+        (1172, 166, 1648, 755),
+        (1172, 768, 1648, 945),
+        (1172, 954, 1648, 1310),
+        (26, 1342, 1654, 1485),
+    ):
+        card(image, box)
+    rune_title(image, (38, 20), "星轨神谕 · 紫微星图", 40)
     draw = ImageDraw.Draw(image)
-    text(draw, (38, 20), "星图 · 紫微星名", 38, "#f2e6c9")
-    text(draw, (1638, 43), "北天极星盘 / 十二宫 / 视星等 · 本地测试", 19, "#b6c3c6", anchor="rt")
+    moon_ornament(draw)
+    text(draw, (1638, 43), "北天极星盘 / 十二宫 / 视星等 · 本地测试", 19, SECONDARY, anchor="rt")
     moment = datetime.fromisoformat(data["epoch_local"])
     site = data["site"]
     fitted_text(
@@ -294,7 +313,7 @@ def render_ziwei_png(data):
         (38, 71),
         f"{site['label']} · {moment:%Y-%m-%d %H:%M:%S %z} · {data['timezone']}",
         21,
-        "#bcd0d1",
+        GOLD,
         1580,
     )
     fitted_text(
@@ -302,7 +321,7 @@ def render_ziwei_png(data):
         (38, 103),
         f"纬度 {site['latitude']:.5f}° / 经度 {site['longitude']:.5f}° · {data['time_note']}",
         17,
-        "#93adb3",
+        SECONDARY,
         1600,
     )
     objects = data["single_chart"]["objects"]
@@ -318,23 +337,23 @@ def render_ziwei_png(data):
         )
     else:
         value = assignment["reason"] + "；仅显示星次研究界"
-    fitted_text(draw, (38, 133), value, 16, "#a7b4b4", 1600)
+    fitted_text(draw, (38, 133), value, 16, SECONDARY, 1340)
     symbols = layer["symbolic_malefics"]
     disk, layout = single_panel(objects, layer)
     image.paste(disk, (0, 176 * SCALE))
     text(draw, (1190, 171), "十四主星", 25, MAIN)
-    text(draw, (1190, 211), "星名    V星等    明暗    高度      宫位", 16, "#97abb7")
+    text(draw, (1190, 211), "星名    V星等    明暗    高度    研究宫", 16, SECONDARY)
     lookup = {obj["name"]: obj for obj in objects}
     for index, name in enumerate(MAJOR_ORDER):
         obj = lookup[name]
         bright = obj["display_state"] == "bright"
         y = 250 + index * 35
-        text(draw, (1190, y), name, 20, MAIN if bright else "#aaa29a")
+        text(draw, (1190, y), name, 20, MAIN if bright else DIM_GOLD)
         estimated = "~" if obj["kind"] != "star" else ""
-        text(draw, (1264, y + 1), f"{estimated}{obj['magnitude']:+.1f}", 16, "#b8c9d3")
-        text(draw, (1357, y + 1), "明" if bright else "暗", 17, "#a6dfcc" if bright else "#9293ab")
-        text(draw, (1403, y + 1), f"{obj['altitude_deg']:+.1f}°", 16, "#abbac4")
-        text(draw, (1512, y + 1), obj["research_palace"], 17, "#90adb7")
+        text(draw, (1264, y + 1), f"{estimated}{obj['magnitude']:+.1f}", 16, SECONDARY)
+        text(draw, (1357, y + 1), "明" if bright else "暗", 17, "#9fbdad" if bright else SECONDARY)
+        text(draw, (1403, y + 1), f"{obj['altitude_deg']:+.1f}°", 16, SECONDARY)
+        text(draw, (1512, y + 1), obj["research_palace"], 17, SECONDARY)
     text(draw, (1190, 780), "辅星", 23, AUX)
     for index, name in enumerate(("禄存", "文曲", "左辅")):
         obj = lookup[name]
@@ -346,40 +365,40 @@ def render_ziwei_png(data):
             16,
             AUX,
         )
-    text(draw, (1190, 925), "星等越小越亮；~ 为模型估算", 15, "#90a5b1")
-    text(draw, (1190, 960), "六煞 · 安星符号", 23, "#deab9d")
+    text(draw, (1190, 925), "星等越小越亮；~ 为模型估算", 15, SECONDARY)
+    text(draw, (1190, 960), "六煞 · 安星符号", 23, GOLD)
     for index, symbol in enumerate(symbols):
         text(
             draw,
             (1190, 1005 + index * 34),
             f"{symbol['name']} · {symbol['branch']} · {symbol['palace']}",
             19,
-            "#de9d89",
+            "#c9a74e",
         )
-    text(draw, (1190, 1230), "菱形 / [符]：无实体坐标和视星等", 15, "#929da8")
-    text(draw, (1190, 1270), "浅线为地平线 · 命宫金边 · 身宫青边", 15, "#9eafa9")
+    text(draw, (1190, 1230), "菱形 / [符]：无实体坐标和视星等", 15, SECONDARY)
+    text(draw, (1190, 1270), "浅金线为地平线 · 命宫金边 · 身宫绿边", 15, SECONDARY)
     text(
         draw,
         (38, 1355),
         "明：高度 ≥ 0°，在地平线以上；暗：高度 < 0°，被地球遮挡。"
         "本图明暗不等同于斗数庙旺落陷或实际肉眼可见性。",
         16,
-        "#b9cbd0",
+        GOLD,
     )
     text(
         draw,
         (38, 1387),
         "* 紫微采用现代北极星展示约定；主星大字，辅星小字。恒星点按 V 星等，日月使用定位符号。",
         15,
-        "#a9b9c1",
+        SECONDARY,
     )
     text(
         draw,
         (38, 1419),
         "北天极中心全天投影 · 半径为极距 · 坐标 ESA Hipparcos / NASA JPL DE440s · "
-        "地点 GeoNames CC BY 4.0",
+        "地点 GeoNames CC BY 4.0 · 盘外星尘与月相为装饰",
         14,
-        "#839ba7",
+        SECONDARY,
     )
     text(
         draw,
@@ -387,7 +406,7 @@ def render_ziwei_png(data):
         "宫界：晋书主表按当前候选距星锚定的研究示意；命宫等按当地民用时安宫，"
         "不是已认证古宫界。V星等未计大气、云层、食与天空背景。",
         14,
-        "#a1a8af",
+        SECONDARY,
     )
     output = io.BytesIO()
     image.resize((1680, 1510), Image.Resampling.LANCZOS).save(output, format="PNG")

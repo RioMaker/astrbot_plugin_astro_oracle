@@ -1,0 +1,9 @@
+{
+  "source": "https://github.com/notofonts/noto-cjk/blob/f8d157532fbfaeda587e826d4cd5b21a49186f7c/Serif/OTF/SimplifiedChinese/NotoSerifCJKsc-Regular.otf",
+  "revision": "f8d157532fbfaeda587e826d4cd5b21a49186f7c",
+  "source_sha256": "2a2eae2628df83556c54018c41e20fa532c1b862c5256ae8b3f23feb918d12ca",
+  "output_sha256": "1e53280dceaf9d21cffdfd21902bf23cdac3f1a9410404f5565485971ee9b662",
+  "output_bytes": 15989384,
+  "license": "SIL Open Font License 1.1; see SERIF_LICENSE.txt",
+  "modification": "Subset of Latin, common CJK and display punctuation; renamed AstroSerif; original copyright retained in font metadata."
+}

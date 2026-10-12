@@ -12,6 +12,7 @@ from local_core.resources import DATA_DIR, prepare_all
 from local_core.sky_chart import SkyChartEngine
 from local_core.ziwei_chart import compute_ziwei
 from local_core.ziwei_single_renderer import render_ziwei_png
+from local_core.ziwei_theme import FONT, STYLE_PROFILE
 
 
 async def preview(args):
@@ -28,6 +29,19 @@ async def preview(args):
             "data": data,
             "label_layout": layout,
             "image_sha256": hashlib.sha256(png).hexdigest(),
+            "style_profile": STYLE_PROFILE,
+            "font_sha256": hashlib.sha256(FONT.read_bytes()).hexdigest(),
+            "star_label_summary": {
+                "inside_region": sum(
+                    label.get("kind") == "object" and label["placement"] == "inside_region"
+                    for label in layout["single"]
+                ),
+                "fallback_objects": [
+                    label["key"]
+                    for label in layout["single"]
+                    if label.get("kind") == "object" and label["placement"] == "leader_fallback"
+                ],
+            },
             "code_sha256": {
                 name: hashlib.sha256(
                     (Path(__file__).resolve().parents[1] / "local_core" / name).read_bytes()
@@ -38,6 +52,8 @@ async def preview(args):
                     "ziwei_photometry.py",
                     "ziwei_single_renderer.py",
                     "ziwei_palace_display.py",
+                    "ziwei_label_layout.py",
+                    "ziwei_theme.py",
                 )
             },
         }
