@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>紫微星图 · 宫位关联实验</title>
+<style>
+@font-face{font-family:Inter;src:url('/fonts/Inter.ttf')}@font-face{font-family:AstroSans;src:url('/fonts/AstroSans.otf')}
+:root{color-scheme:dark;--bg:#0a0a0b;--panel:#111113;--text:#fafafa;--muted:#b1b1bc;--line:#ffffff24;--accent:#8d96ed}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px Inter,AstroSans,sans-serif;letter-spacing:-.01em}main{max-width:1480px;margin:auto;padding:28px}h1{font-size:24px;margin:0 0 9px;font-weight:600}h2{font-size:15px;font-weight:600;margin:0 0 12px}p{color:var(--muted);line-height:1.7;margin:8px 0}a{color:var(--accent)}button,input,select{font:inherit;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:8px 10px;min-height:36px}button{cursor:pointer}button:hover{opacity:.83}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}button:disabled{opacity:.5;cursor:wait}.primary{background:linear-gradient(90deg,#5e6ad2,#8b5cf6);border:0}label{display:grid;gap:5px;color:var(--muted);font-size:12px}.controls{display:flex;gap:12px;align-items:end;flex-wrap:wrap;padding:20px 0;border-bottom:1px solid var(--line)}input[type=number]{width:106px}#epoch{width:250px}.views{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:18px 0}.views label{min-width:175px}.time{font-variant-numeric:tabular-nums;color:var(--text)}.layout{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:26px}.figure{min-width:0}.stage{position:relative;width:100%;height:530px}.stage canvas,.stage svg{position:absolute;inset:0;width:100%;height:100%}svg text{font-family:Inter,AstroSans,sans-serif;font-size:12px;fill:var(--text);paint-order:stroke;stroke:var(--bg);stroke-width:3px;stroke-linejoin:round}.palaces{display:grid;grid-template-columns:1fr 1fr;gap:8px}.palace{min-width:0;text-align:left;padding:10px;background:transparent;border-radius:5px;min-height:92px}.palace[aria-pressed=true]{border-color:var(--accent);background:#5e6ad219}.palace .head{display:flex;gap:7px;font-weight:600;margin-bottom:8px}.branch{color:var(--accent)}.names{color:var(--text);font-size:12px;line-height:1.9;overflow-wrap:anywhere}.empty{color:var(--muted)}.detail{min-height:70px;border-top:1px solid var(--line);padding:14px 0;line-height:1.8}.detail strong{color:var(--accent)}.legend{display:flex;gap:18px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:12px 0}.legend span::before{content:'';display:inline-block;width:9px;height:9px;margin-right:6px;border:1px solid var(--text);border-radius:50%}.legend .solid::before{background:var(--text)}.legend .region::before{background:#8d96ed55;border-radius:0;border-color:var(--accent)}.note{font-size:12px}.status{min-height:25px;display:flex;gap:12px;flex-wrap:wrap;color:var(--muted);margin:12px 0}.error{color:#ffb3b3}.support{border-top:1px solid var(--line);margin-top:24px;padding-top:15px}summary{cursor:pointer;color:var(--muted)}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.7 Inter,AstroSans,sans-serif;color:var(--muted)}#probe{color:var(--muted);font-size:12px;min-height:20px}.caption{font-size:12px;line-height:1.6;color:var(--muted)}.formula{font-variant-numeric:tabular-nums;color:var(--text)}
+@media(max-width:1050px){.layout{grid-template-columns:minmax(0,1fr) 285px;gap:16px}main{padding:20px}.stage{height:520px}}
+@media(max-width:780px){.layout{grid-template-columns:1fr}.palaces{grid-template-columns:repeat(3,minmax(0,1fr))}.palace{min-height:110px}.stage{height:520px}main{padding:15px}h1{font-size:21px}}
+@media(max-width:460px){.palaces{grid-template-columns:1fr 1fr}.controls{gap:10px}.controls label:first-child{width:100%}#epoch{width:100%}.views label{min-width:0;max-width:100%}.views select{max-width:100%}.stage{height:560px}}
+</style>
+</head>
+<body><main>
+<header><h1>紫微星图 · 宫位关联实验</h1><p>真实天体位置 × 传统安星结果。关联区域由所选星点生成，属于表达模型，尚无历史天文宫界依据。</p></header>
+<form id="form" class="controls">
+<label>时刻 · ISO 时间，须含 UTC 偏移<input id="epoch" value="2026-10-12T20:00:00+08:00" required aria-label="含时区偏移的时刻"></label>
+<label>纬度 °<input id="lat" type="number" value="39.9075" min="-90" max="90" step="any" required></label>
+<label>经度 °<input id="lon" type="number" value="116.39723" min="-180" max="180" step="any" required></label>
+<label>排盘当地时区<input id="tz" value="Asia/Shanghai" required></label>
+<button class="primary" type="submit" id="calculate">重算</button><button type="button" id="live" aria-pressed="false">跟随当前时间</button>
+<button type="button" id="forward">向后 1 小时</button>
+</form>
+<div class="status" role="status" aria-live="polite"><span id="status">正在读取本地历表…</span><span id="clock" class="time"></span></div>
+<div class="views">
+<label>坐标表达<select id="frame"><option value="equatorial">赤经 / 赤纬 · 当日视位置</option><option value="horizontal">方位 / 高度 · 当地全天</option></select></label>
+<label>边界依据<select id="mode"><option value="association">球面最近星关联 · 表达模型</option><option value="equal">等分赤经候选 · 拟合失败</option><option value="none">只看真实位置</option></select></label>
+<label>参与关联的名称<select id="evidence"><option value="all">全部 17 项（含 8 项展示约定）</option><option value="documented">日月与北斗别名 · 9 项</option><option value="entity">实体日月 · 2 项</option></select></label>
+<label>定位星名<select id="selected" aria-label="定位星名"></select></label>
+</div>
+<div class="layout">
+<section class="figure"><h2 id="chart-title">天球关联区域</h2><div class="caption" id="model-caption"></div>
+<div class="stage" id="stage"><canvas id="regions" aria-hidden="true"></canvas><svg id="sky" role="img" aria-label="真实天体方向及宫位关联区域"></svg></div>
+<div class="legend"><span class="solid">地平线上方</span><span>地平线下方</span><span class="region">所选传统宫的关联区域</span></div>
+<div id="probe">在图中移动或点击可查询方向与关联宫。</div>
+<div id="detail" class="detail" aria-live="polite"></div>
+</section>
+<aside><h2>传统十二宫 · 注释留在本宫</h2><p class="note" id="rule-summary"></p><div class="palaces" id="palaces"></div><p class="note">编号连接同名项目；† 表示实体映射采用展示约定。无对应天体的星曜只列于传统宫。</p></aside>
+</div>
+<details class="support"><summary>变换公式、反推结果与数据依据</summary>
+<p class="formula">关联公式：C(v,t) = 传统落宫[argmaxᵢ v · vᵢ(t)]。</p>
+<p>vᵢ 是真实天体的单位方向，v 是待查询天区方向。先找球面角距离最近的星点，再取它按历法排出的宫位。两颗种子等距线满足 (vᵢ − vⱼ) · v = 0；仅保留最近种子的有效边，同宫内部边界合并。不同宫等距时标为边界歧义。</p>
+<p>这套公式用传统宫位作为输入，不能用“星点全部匹配”证明天文关联。一个宫可有多片区域；没有种子的宫没有区域。区域范围取决于所选星表，远离种子处也不表示真实天文学归属。经纬展开在两极及接缝处会拉伸，球面距离计算不受展开影响。画面按像素采样，边界是近似显示。</p>
+<p>反推候选为 b = floor(mod(s × (q − φ), 360°) / 30°)。固定相位 φ 与方向 s 只在 12 个日期 × 3 地点上拟合，另外 6 个完整日期留出。赤经、黄经、时角、方位角的留出匹配率依次为 5.23%、9.15%、9.48%、5.56%。这里只排除了本次候选，未排除日期依赖或更复杂的变换。等分预览使用固定赤经拟合参数 φ=286.547183817215°、s=1。</p>
+<p>参与项为 15 颗恒星与太阳、月球。北斗历史别名及项目展示约定不能自动证明斗数同名星的物理身份。传统核心依照当前《全书》研究版本：采用当地民用时间、23 点换命理日、闰月整月作下月；未校正真太阳时。</p>
+<p><a href="https://zh.wikisource.org/w/index.php?oldid=1963110" target="_blank" rel="noreferrer">《紫微斗数全书》规则版本</a> · <a href="https://rhodesmill.org/skyfield/coordinates.html" target="_blank" rel="noreferrer">Skyfield 坐标定义</a></p>
+<pre id="provenance"></pre>
+</details>
+</main>
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id), branches = [...'子丑寅卯辰巳午未申酉戌亥'];
+  const ns = 'http://www.w3.org/2000/svg', rad = Math.PI / 180;
+  let state = null, selected = '紫微', chosenBranch = '', timer = null, busy = false, plot = null, visible = [], pointLayout = [];
+  const dot = (a,b) => a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+  const vector = (a,d) => [Math.cos(d*rad)*Math.cos(a*rad),Math.cos(d*rad)*Math.sin(a*rad),Math.sin(d*rad)];
+  const element = (name,attrs,text) => { const n=document.createElementNS(ns,name); for(const [k,v] of Object.entries(attrs||{})) n.setAttribute(k,v); if(text!==undefined)n.textContent=text; $('sky').appendChild(n);return n; };
+  function seeds() {return state.rows.filter(r=>$('evidence').value==='all'||($('evidence').value==='entity'?r.mapping.class==='entity':r.mapping.class!=='display_convention'));}
+  function nearest(v,rows,horizontal=false){const scores=rows.map(r=>dot(v,horizontal?r.vector_horizontal:r.unit_vector)),best=Math.max(...scores);const near=rows.map((r,i)=>({r,score:scores[i]})).filter(r=>r.score>=best-1e-10).map(({r,score})=>{const u=horizontal?r.vector_horizontal:r.unit_vector;return{r,d:Math.atan2(Math.hypot(v[1]*u[2]-v[2]*u[1],v[2]*u[0]-v[0]*u[2],v[0]*u[1]-v[1]*u[0]),score)/rad}});const distance=Math.min(...near.map(r=>r.d)),group=near.filter(r=>r.d-distance<=1e-9).map(r=>r.r);return{row:group[0],ambiguous:new Set(group.map(r=>r.traditional_branch)).size>1,distance};}
+  function equalBranch(a,d,horizontal){let ra=a;if(horizontal){const v=vector(a,d),m=state.frames.equatorial_to_horizontal;const eq=[0,1,2].map(i=>m.reduce((sum,row,j)=>sum+row[i]*v[j],0));ra=(Math.atan2(eq[1],eq[0])/rad+360)%360}return Math.floor(((ra-286.547183817215+360)%360)/30)}
+  function setLive(on){clearTimeout(timer);timer=null;$('live').setAttribute('aria-pressed',String(on));$('live').textContent=on?'停止跟随 · 每 30 秒重算':'跟随当前时间';$('epoch').disabled=on;if(state&&!on&&$('status').className!=='error')$('status').textContent='已停止跟随 · 保留当前时刻';}
+  async function load(live=false){if(busy)return;busy=true;$('calculate').disabled=true;$('status').className='';$('status').textContent='正在计算真实位置…';
+    const params=new URLSearchParams({epoch:live?'now':$('epoch').value,lat:$('lat').value,lon:$('lon').value,tz:$('tz').value});
+    try{const response=await fetch('/api/state?'+params,{cache:'no-store'}),result=await response.json();if(!response.ok)throw new Error(result.error||'计算失败');state=result;if(live)$('epoch').value=state.epoch_local;chosenBranch=state.rows.find(r=>r.name===selected)?.traditional_branch||state.rows[0].traditional_branch;$('clock').textContent=state.epoch_local.replace('T',' ');$('status').textContent=live&&$('live').getAttribute('aria-pressed')==='true'?'正在跟随当前时间 · 每 30 秒重算':'指定时刻 · 本地历表计算';$('provenance').textContent=JSON.stringify(state.provenance,null,2);$('selected').replaceChildren(...seeds().map(r=>{const o=document.createElement('option');o.value=r.name;o.textContent=String(state.rows.indexOf(r)+1).padStart(2,'0')+' '+r.name+' / '+r.target;return o}));$('selected').value=selected;draw();}
+    catch(error){$('status').className='error';$('status').textContent='计算失败：'+error.message+(state?'（图中保留上次成功结果）':'');setLive(false)}finally{busy=false;$('calculate').disabled=false;if($('live').getAttribute('aria-pressed')==='true')timer=setTimeout(()=>load(true),30000)}}
+  function palaces(){const target=$('palaces');target.replaceChildren();for(const branch of branches){const b=document.createElement('button');b.type='button';b.className='palace';b.setAttribute('aria-pressed',String(branch===chosenBranch));b.dataset.branch=branch;const head=document.createElement('div');head.className='head';const bn=document.createElement('span');bn.className='branch';bn.textContent=branch;const pn=document.createElement('span');pn.textContent=state.traditional.palace_names[branch];head.append(bn,pn);b.append(head);const names=document.createElement('div');names.className='names';const members=Object.entries(state.traditional.positions).filter(([,p])=>p.branch===branch);names.textContent=members.map(([name])=>{const i=state.rows.findIndex(r=>r.name===name);return (i<0?'':String(i+1).padStart(2,'0')+' ')+name+(i>=0&&state.rows[i].mapping.convention?'†':'')}).join(' · ')||'本层无安星';b.append(names);b.addEventListener('click',()=>{chosenBranch=branch;const first=visible.find(r=>r.traditional_branch===branch);if(first){selected=first.name;$('selected').value=selected}draw()});target.append(b)}}
+  function draw(){if(!state)return;visible=seeds();palaces();const tr=state.traditional;$('rule-summary').textContent=`农历 ${tr.lunar.year} 年 ${tr.lunar.leap?'闰':''}${tr.lunar.month} 月 ${tr.lunar.day} 日 · ${tr.hour_branch}时 · ${tr.bureau.element}${tr.bureau.number}局 · 命${tr.life_branch} / 身${tr.body_branch}`;const horizontal=$('frame').value==='horizontal',mode=$('mode').value;const rect=$('stage').getBoundingClientRect(),w=Math.round(rect.width),h=Math.round(rect.height),margin={left:45,right:16,top:30,bottom:48};plot={x:margin.left,y:margin.top,w:w-margin.left-margin.right,h:h-margin.top-margin.bottom,horizontal};const {x,y}=plot,pw=plot.w,ph=plot.h;const svg=$('sky');svg.replaceChildren();svg.setAttribute('viewBox',`0 0 ${w} ${h}`);
+    $('chart-title').textContent=(horizontal?'当地全天方向':'当日赤道天球')+' · '+chosenBranch+' / '+state.traditional.palace_names[chosenBranch];
+    $('model-caption').textContent=mode==='association'?'淡紫区域：最近星属于所选宫。灰线：不同宫的关联边界。':mode==='equal'?'固定赤经等分候选 · 留出匹配率 5.23% · 不作为实际宫界':'星点保持真实坐标；文字位置仅作避让。';
+    const canvas=$('regions');canvas.width=w;canvas.height=h;const ctx=canvas.getContext('2d');ctx.clearRect(0,0,w,h);const cols=Math.ceil(pw/2),rows=Math.ceil(ph/2),indices=new Int16Array(cols*rows).fill(-1),selectedMask=new Uint8Array(cols*rows);
+    if(mode!=='none'){for(let j=0;j<rows;j++){const d=90-(j+.5)/rows*180;for(let i=0;i<cols;i++){const a=(i+.5)/cols*360;let b,ambiguous=false;if(mode==='equal'){b=equalBranch(a,d,horizontal)}else{const n=nearest(vector(a,d),visible,horizontal);b=branches.indexOf(n.row.traditional_branch);ambiguous=n.ambiguous}const k=j*cols+i;indices[k]=ambiguous?-1:b;selectedMask[k]=branches[b]===chosenBranch&&!ambiguous?1:0;}}
+    const img=ctx.createImageData(cols,rows);for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){const k=j*cols+i,o=k*4;const edge=(i>0&&indices[k]!==indices[k-1])||(j>0&&indices[k]!==indices[k-cols]);img.data[o]=edge?180:141;img.data[o+1]=edge?180:150;img.data[o+2]=edge?195:237;img.data[o+3]=edge?100:selectedMask[k]?48:0}const tiny=document.createElement('canvas');tiny.width=cols;tiny.height=rows;tiny.getContext('2d').putImageData(img,0,0);ctx.imageSmoothingEnabled=false;ctx.drawImage(tiny,x,y,pw,ph)}
+    element('rect',{x,y,width:pw,height:ph,fill:'none',stroke:'#ffffff38'});let blocked=[];const text=(tx,ty,s,attrs={})=>{const n=element('text',{x:tx,y:ty,...attrs},s);const r=n.getBBox();blocked.push({x:r.x-4,y:r.y-4,w:r.width+8,h:r.height+8});return n};
+    for(const d of[-90,-45,0,45,90]){const yy=y+(90-d)/180*ph;element('line',{x1:x,y1:yy,x2:x+pw,y2:yy,stroke:d===0?'#ffffff44':'#ffffff12','stroke-dasharray':d===0?'4 4':'1 0'});text(x-8,yy+4,d+'°',{'text-anchor':'end'})}const ticks=w<400?[0,120,240,360]:[0,60,120,180,240,300,360];for(const a of ticks){const xx=x+a/360*pw;element('line',{x1:xx,y1:y,x2:xx,y2:y+ph,stroke:'#ffffff12'});text(xx,y+ph+20,horizontal?a+'°':a/15+'h',{'text-anchor':a===0?'start':a===360?'end':'middle'})}text(x,y-12,horizontal?'高度角':'赤纬');text(x+pw/2,h-5,horizontal?'方位角 · 北 0° / 东 90°':'赤经 · 0h 与 24h 相接',{'text-anchor':'middle'});
+    const points=visible.map(r=>{const a=horizontal?r.azimuth_deg:r.ra_date_deg,d=horizontal?r.altitude_deg:r.dec_date_deg;return{r,x:x+a/360*pw,y:y+(90-d)/180*ph}});pointLayout=points;const hit=(a,b)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;const dots=points.map(p=>({x:p.x-6,y:p.y-6,w:12,h:12}));let labelBoxes=[];
+    for(const p of [...points].sort((a,b)=>(b.r.name===selected)-(a.r.name===selected))){const index=state.rows.indexOf(p.r)+1,label=String(index).padStart(2,'0')+' '+p.r.name;const n=element('text',{},label);n.dataset.star=p.r.name;const box=n.getBBox(),bw=box.width+8,bh=box.height+6;let best=null;for(let radius=12;radius<Math.max(pw,ph);radius+=12){for(let k=0;k<16;k++){const angle=k*Math.PI/8,lx=Math.min(x+pw-bw,Math.max(x,p.x+Math.cos(angle)*radius-bw/2)),ly=Math.min(y+ph-bh,Math.max(y,p.y+Math.sin(angle)*radius-bh/2)),candidate={x:lx,y:ly,w:bw,h:bh};if(![...blocked,...labelBoxes,...dots].some(b=>hit(candidate,b))){const distance=(lx+bw/2-p.x)**2+(ly+bh/2-p.y)**2;if(!best||distance<best.distance)best={...candidate,distance}}}if(best)break}if(!best){best={x:x+4,y:y+4+labelBoxes.length*21,w:bw,h:bh};n.dataset.layoutFallback='true'}labelBoxes.push(best);n.setAttribute('x',best.x+4);n.setAttribute('y',best.y+bh-5);n.style.fill=p.r.name===selected?'#a8afff':'#fafafa';const ex=Math.max(best.x,Math.min(p.x,best.x+bw)),ey=Math.max(best.y,Math.min(p.y,best.y+bh));const leader=element('line',{x1:p.x,y1:p.y,x2:ex,y2:ey,stroke:'#ffffff48','stroke-width':.7});leader.dataset.labelIndex=String(labelBoxes.length-1);svg.insertBefore(leader,n);n.style.cursor='pointer';n.addEventListener('click',()=>select(p.r));}
+    const crosses = (a,b,r) => {
+      let lo=0,hi=1;const dx=b.x-a.x,dy=b.y-a.y;
+      for(const [p,q] of [[-dx,a.x-r.x],[dx,r.x+r.w-a.x],[-dy,a.y-r.y],[dy,r.y+r.h-a.y]]) {
+        if(Math.abs(p)<1e-12){if(q<0)return false;continue}
+        const t=q/p;if(p<0)lo=Math.max(lo,t);else hi=Math.min(hi,t);if(lo>hi)return false;
+      }return hi>0&&lo<1;
+    };
+    svg.querySelectorAll('line[data-label-index]').forEach(line=>{
+      const a={x:Number(line.getAttribute('x1')),y:Number(line.getAttribute('y1'))};
+      const b={x:Number(line.getAttribute('x2')),y:Number(line.getAttribute('y2'))};
+      if(labelBoxes.some((r,i)=>i!==Number(line.dataset.labelIndex)&&crosses(a,b,r)))line.remove();
+    });
+    for(const p of points){const isSelected=p.r.name===selected;if(isSelected)element('circle',{cx:p.x,cy:p.y,r:8,fill:'none',stroke:'#a8afff'});element('circle',{cx:p.x,cy:p.y,r:isSelected?4:3,fill:p.r.altitude_deg>=0?'#fafafa':'#0a0a0b',stroke:isSelected?'#a8afff':'#fafafa','stroke-width':1.3})}
+    const r=state.rows.find(r=>r.name===selected),has=visible.some(v=>v.traditional_branch===chosenBranch);$('detail').replaceChildren();const strong=document.createElement('strong');strong.textContent=chosenBranch+' · '+state.traditional.palace_names[chosenBranch];$('detail').append(strong,document.createElement('br'));if(r&&r.traditional_branch===chosenBranch)$('detail').append(`${r.name} → ${r.target} · ${r.mapping.label} · 高度 ${r.altitude_deg.toFixed(2)}° / 方位 ${r.azimuth_deg.toFixed(2)}°`);if(!has)$('detail').append('当前星表没有属于此宫的种子，关联模型不为此宫分配天区。');else if(mode==='association')$('detail').append('　区域来自传统标签与球面最近距离。');
+    window.geometryLab={state,plot,labels:labelBoxes,points:points.map(p=>({name:p.r.name,x:p.x,y:p.y})),visible:visible.map(r=>r.name),mode,frame:horizontal?'horizontal':'equatorial'};
+  }
+  function select(r){selected=r.name;chosenBranch=r.traditional_branch;$('selected').value=selected;draw()}
+  $('form').addEventListener('submit',e=>{e.preventDefault();setLive(false);load()});$('live').addEventListener('click',()=>{const on=$('live').getAttribute('aria-pressed')!=='true';setLive(on);if(on)load(true)});$('forward').addEventListener('click',()=>{if(busy)return;setLive(false);const t=new Date($('epoch').value);if(!Number.isFinite(t.getTime())){ $('status').textContent='请输入含偏移的有效时间';return }$('epoch').value=new Date(t.getTime()+3600000).toISOString();load()});for(const id of ['frame','mode'])$(id).addEventListener('change',draw);$('evidence').addEventListener('change',()=>{if(!state)return;const rows=seeds();$('selected').replaceChildren(...rows.map(r=>{const o=document.createElement('option');o.value=r.name;o.textContent=String(state.rows.indexOf(r)+1).padStart(2,'0')+' '+r.name+' / '+r.target;return o}));const r=rows.find(r=>r.name===selected)||rows[0];select(r)});$('selected').addEventListener('change',()=>{const r=state.rows.find(r=>r.name===$('selected').value);select(r)});
+  function probe(event,click=false){if(!plot||!state)return;const b=$('sky').getBoundingClientRect(),px=event.clientX-b.left,py=event.clientY-b.top;if(px<plot.x||px>plot.x+plot.w||py<plot.y||py>plot.y+plot.h)return;const a=(px-plot.x)/plot.w*360,d=90-(py-plot.y)/plot.h*180,n=nearest(vector(a,d),visible,plot.horizontal);$('probe').textContent=`${plot.horizontal?'方位':'赤经'} ${a.toFixed(1)}° / ${plot.horizontal?'高度':'赤纬'} ${d.toFixed(1)}° · 最近 ${n.row.name} ${n.distance.toFixed(1)}° · ${n.ambiguous?'边界歧义':n.row.traditional_branch+' '+n.row.traditional_palace}`;if($('mode').value==='equal')$('probe').textContent+=` · 等分候选 ${branches[equalBranch(a,d,plot.horizontal)]}`;if(click&&!n.ambiguous)select(n.row)}
+  $('sky').addEventListener('pointermove',e=>probe(e));$('sky').addEventListener('click',e=>{if(e.target.tagName!=='text')probe(e,true)});new ResizeObserver(()=>draw()).observe($('stage'));document.fonts.ready.then(()=>draw());load();
+})();
+</script></body></html>
