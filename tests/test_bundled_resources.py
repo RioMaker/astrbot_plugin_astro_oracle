@@ -36,7 +36,7 @@ def test_fresh_framework_cache_generates_real_chart_from_repo_with_http_disabled
                 datetime(2026, 10, 10, tzinfo=timezone.utc),
             )
             with Image.open(io.BytesIO(png)) as image:
-                assert image.size == (1680, 1145) and image.format == "PNG"
+                assert image.size == (1760, 1650) and image.format == "PNG"
             assert service.ready and service._sky.core.path.parent == data_dir
         finally:
             await service.close()
