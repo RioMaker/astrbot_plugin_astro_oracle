@@ -1,4 +1,4 @@
-"""紫微星名的真实天体预览；独立于已注册的 AstrBot 指令与服务。"""
+"""紫微星名的真实天体计算；供独立紫微入口与历史研究预览使用。"""
 
 import hashlib
 import math
@@ -8,7 +8,7 @@ from pathlib import Path
 from skyfield.api import Star, wgs84
 from skyfield.errors import EphemerisRangeError
 
-from .bot_commands import ChartSettings, parse_request, resolve_place, resolve_time
+from .bot_commands import ChartRequest, ChartSettings, parse_request, resolve_place, resolve_time
 from .sky_chart import clipped_arc, direction, project
 from .ziwei_palaces import build_palace_layer, locate_sector, project_north_pole
 from .ziwei_photometry import luminary_photometry
@@ -86,12 +86,15 @@ def project_all_sky(altitude, azimuth):
 
 
 def parse_preview_request(content):
-    """本地接受完整 /星图 指令或同样的参数，四前缀仍共用原解析器。"""
-    if isinstance(content, str):
-        parts = content.split(maxsplit=1)
-        if parts and parts[0].casefold() in {"/星图", "/xingtu", "/xt", "/star"}:
-            content = parts[1] if len(parts) > 1 else ""
-    request = parse_request(content)
+    """接受已解析请求或本地完整指令；旧四前缀保留原有解析结果。"""
+    if isinstance(content, ChartRequest):
+        request = content
+    else:
+        if isinstance(content, str):
+            parts = content.split(maxsplit=1)
+            if parts and parts[0].casefold() in {"/紫微星图", "/星图", "/xingtu", "/xt", "/star"}:
+                content = parts[1] if len(parts) > 1 else ""
+        request = parse_request(content)
     if request.action == "help":
         raise ValueError("预览请输入星图时间与地点；本脚本不处理帮助指令。")
     return request
