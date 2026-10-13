@@ -1,3 +1,5 @@
 # Downloaded astronomy files keep their original bytes and SHA-256 on every host.
 assets/astronomy/** -text -diff
 assets/astronomy/README.md text diff
+# Preserve the bundled Inter license bytes recorded in its provenance.
+assets/fonts/LINEAR_LICENSE.txt -text

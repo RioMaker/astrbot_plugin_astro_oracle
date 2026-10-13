@@ -1,7 +1,7 @@
 {
   "enabled": {
     "type": "bool",
-    "description": "启用星图指令",
+    "description": "启用星图与紫微星图指令",
     "default": true
   },
   "default_place": {

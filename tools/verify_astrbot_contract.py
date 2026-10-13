@@ -1,4 +1,4 @@
-"""核对官方 CommandFilter 的别名与 GreedyStr；不启动真实 AstrBot 或消息平台。"""
+"""以缓存官方 CommandFilter 核对两组指令隔离；不启动真实 AstrBot 或消息平台。"""
 
 import ast
 import copy
@@ -60,24 +60,32 @@ def main():
     exec(compile(ast.Module(body=nodes, type_ignores=[]), str(path), "exec"), namespace)
     plugin = ast.parse((ROOT / "main.py").read_text(encoding="utf-8"))
     cls = next(node for node in plugin.body if isinstance(node, ast.ClassDef))
-    method = copy.deepcopy(
-        next(
-            node
-            for node in cls.body
-            if isinstance(node, ast.AsyncFunctionDef) and node.name == "star_chart"
+    commands, registrations = {}, {}
+    for handler in ("star_chart", "ziwei_chart"):
+        method = copy.deepcopy(
+            next(
+                node
+                for node in cls.body
+                if isinstance(node, ast.AsyncFunctionDef) and node.name == handler
+            )
         )
-    )
-    decorator = method.decorator_list[0]
-    name = ast.literal_eval(decorator.args[0])
-    aliases = ast.literal_eval(
-        next(item.value for item in decorator.keywords if item.arg == "alias")
-    )
-    method.decorator_list = []
-    method.body = [ast.Pass()]
-    declaration = ast.fix_missing_locations(ast.Module(body=[method], type_ignores=[]))
-    exec(compile(declaration, "plugin-signature", "exec"), namespace)
-    metadata = types.SimpleNamespace(handler=namespace["star_chart"])
-    command = namespace["CommandFilter"](name, alias=aliases, handler_md=metadata)
+        assert not any(isinstance(node, (ast.Yield, ast.YieldFrom)) for node in ast.walk(method))
+        decorator = method.decorator_list[0]
+        name = ast.literal_eval(decorator.args[0])
+        aliases = ast.literal_eval(
+            next(item.value for item in decorator.keywords if item.arg == "alias")
+        )
+        method.decorator_list = []
+        method.body = [ast.Pass()]
+        declaration = ast.fix_missing_locations(ast.Module(body=[method], type_ignores=[]))
+        exec(compile(declaration, "plugin-signature", "exec"), namespace)
+        metadata = types.SimpleNamespace(handler=namespace[handler])
+        commands[handler] = namespace["CommandFilter"](name, alias=aliases, handler_md=metadata)
+        registrations[handler] = {"name": name, "aliases": sorted(aliases)}
+    assert registrations == {
+        "star_chart": {"name": "星图", "aliases": ["star", "xingtu", "xt"]},
+        "ziwei_chart": {"name": "紫微星图", "aliases": []},
+    }
     inputs = [
         "",
         "help",
@@ -92,14 +100,30 @@ def main():
         "30.25°N 120.5°E 20250102",
     ]
     cases = []
-    for prefix in ("星图", "xingtu", "xt", "star"):
-        for content in inputs:
-            event = Event(prefix + (" " + content if content else ""))
-            assert command.filter(event, {})
-            assert event.extras["parsed_params"] == {"content": content}
-            cases.append(event.text)
-    for text in ("stars", "starfish help", "星轨神谕", "astro_oracle help"):
-        assert not command.filter(Event(text), {})
+    for handler, prefixes in (
+        ("star_chart", ("星图", "xingtu", "xt", "star")),
+        ("ziwei_chart", ("紫微星图",)),
+    ):
+        for prefix in prefixes:
+            for content in inputs:
+                event = Event(prefix + (" " + content if content else ""))
+                assert commands[handler].filter(event, {})
+                assert event.extras["parsed_params"] == {"content": content}
+                other = "ziwei_chart" if handler == "star_chart" else "star_chart"
+                assert not commands[other].filter(Event(event.text), {})
+                cases.append({"handler": handler, "text": event.text, "other_ignored": other})
+    unrelated = (
+        "stars",
+        "starfish help",
+        "星轨神谕",
+        "astro_oracle help",
+        "紫微星图片",
+        "紫微星图help",
+        "星图紫微",
+    )
+    for text in unrelated:
+        for command in commands.values():
+            assert not command.filter(Event(text), {})
     report = {
         "checked_at_utc": datetime.now(timezone.utc).isoformat(),
         "source_url": SOURCE_URL,
@@ -108,9 +132,23 @@ def main():
             path.stat().st_mtime, timezone.utc
         ).isoformat(),
         "plugin_sha256": hashlib.sha256((ROOT / "main.py").read_bytes()).hexdigest(),
+        "registrations": registrations,
         "cases": cases,
-        "result": f"{len(cases)} alias/argument cases passed; 4 unrelated commands ignored",
-        "scope": "Official filter code with minimal import collaborators; no live AstrBot/OneBot",
+        "negative_inputs": unrelated,
+        "checks": {
+            "matching": len(cases),
+            "mutually_exclusive": len(cases),
+            "unrelated_filter_rejections": len(unrelated) * len(commands),
+        },
+        "result": (
+            f"{len(cases)} alias/argument matches and mutual exclusions passed; "
+            f"{len(unrelated)} unrelated commands rejected by both filters"
+        ),
+        "scope": (
+            "Cached official master CommandFilter snapshot, identified by SHA-256 and file date; "
+            "minimal import collaborators; "
+            "no assertion of current latest source or live AstrBot/OneBot"
+        ),
     }
     output = ROOT / "data" / "bot-validation"
     output.mkdir(parents=True, exist_ok=True)

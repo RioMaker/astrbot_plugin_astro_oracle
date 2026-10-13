@@ -6,3 +6,5 @@ httpx==0.28.1
 tzdata==2026.5
 # Share Pillow with AstrBot Core; retain compatible installed 12.x versions.
 Pillow>=11.3.0,<13
+# Calendar conversion for the independent Zi Wei chart command.
+lunar-python==1.4.8

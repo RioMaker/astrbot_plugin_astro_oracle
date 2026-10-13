@@ -99,10 +99,16 @@ def prepare_namespace():
     return namespace, event_type, wrapper, scheduler_type
 
 
-async def run_case(source, content, ready=True, enabled=True):
+async def run_case(source, content, ready=True, enabled=True, handler_name="star_chart"):
     namespace, event_type, wrapper, scheduler_type = prepare_namespace()
-    method = load_function(source, "star_chart", namespace, "AstroOraclePlugin")
+    if handler_name == "ziwei_chart":
+        for helper in ("ziwei_help", "ziwei_error_text"):
+            load_function(source, helper, namespace)
+    method = load_function(source, handler_name, namespace, "AstroOraclePlugin")
+    if handler_name == "ziwei_chart":
+        assert inspect.iscoroutinefunction(method) and not inspect.isasyncgenfunction(method)
     sent, computed = [], []
+    service_calls = []
 
     async def send(origin, message):
         sent.extend((origin, component) for component in message.chain)
@@ -110,12 +116,20 @@ async def run_case(source, content, ready=True, enabled=True):
 
     async def generate(*args):
         computed.append(args)
+        service_calls.append("star_chart")
         return b"message-routing-only; not astronomy fixture"
+
+    async def generate_ziwei(*args):
+        computed.append(args)
+        service_calls.append("ziwei_chart")
+        return b"ziwei-message-routing-only; not astronomy fixture"
 
     plugin = types.SimpleNamespace(
         context=types.SimpleNamespace(send_message=send),
         config={"enabled": enabled},
-        _charts=types.SimpleNamespace(ready=ready, generate=generate),
+        _charts=types.SimpleNamespace(
+            ready=ready, generate=generate, generate_ziwei=generate_ziwei
+        ),
     )
     event = event_type()
     event._result, event._force_stopped = None, False
@@ -135,6 +149,17 @@ async def run_case(source, content, ready=True, enabled=True):
     scheduler.stages = [Process(), Respond()]
     await scheduler._process_stages(event)
     assert all(origin == "test:GroupMessage:sky" for origin, _ in sent)
+    assert all(name == handler_name for name in service_calls)
+    if handler_name == "ziwei_chart":
+        assert event.is_stopped()
+        text_messages = [c.text for _, c in sent if hasattr(c, "text")]
+        assert all("/星图" not in value for value in text_messages)
+        if computed and not ready:
+            assert "准备紫微星图资源" in text_messages[0]
+        elif content in {"help", "帮助", "20250", "help 北京"} and enabled:
+            assert "/紫微星图" in text_messages[0]
+        if not enabled:
+            assert "紫微星图功能当前已关闭" in text_messages[0]
     return {
         "text_messages": sum(hasattr(c, "text") for _, c in sent),
         "image_messages": sum(hasattr(c, "png") for _, c in sent),
@@ -160,6 +185,27 @@ async def verify():
         result = await run_case(ROOT / "main.py", content, ready, enabled)
         assert tuple(result.values()) == expected, result
         results.append({"source": "after", "content": content, **result})
+    for content, ready, enabled, expected in (
+        ("help", False, True, (1, 0, 0)),
+        ("帮助", False, True, (1, 0, 0)),
+        ("", False, True, (1, 1, 1)),
+        ("", True, True, (0, 1, 1)),
+        ("20250", False, True, (1, 0, 0)),
+        ("help 北京", False, True, (1, 0, 0)),
+        ("", False, False, (1, 0, 0)),
+    ):
+        result = await run_case(ROOT / "main.py", content, ready, enabled, "ziwei_chart")
+        assert tuple(result.values()) == expected, result
+        results.append(
+            {
+                "source": "ziwei",
+                "handler": "ziwei_chart",
+                "content": content,
+                "ready": ready,
+                "enabled": enabled,
+                **result,
+            }
+        )
     return results
 
 
@@ -183,12 +229,16 @@ def main():
             name: hashlib.sha256((REFERENCE / name).read_bytes()).hexdigest() for name in FILES
         },
         "plugin_sha256": hashlib.sha256((ROOT / "main.py").read_bytes()).hexdigest(),
-        "scope": "Official scheduling/event/call logic; simulated transport; no real QQ send",
+        "scope": (
+            "Cached official AstrBot v4.28.1 scheduling/event/call snapshots "
+            "identified by SHA-256; "
+            "simulated service and transport; no real QQ send"
+        ),
     }
     output = ROOT / "data" / "bot-validation" / "pipeline-4.28.1.json"
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
-    print("PASS: cold request previously stopped before calculation; responses now complete.")
+    print(f"PASS: {len(cases)} official scheduler cases; old and Zi Wei responses complete.")
 
 
 if __name__ == "__main__":

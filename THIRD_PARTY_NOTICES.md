@@ -34,8 +34,13 @@ Skyfield 使用 Mallama & Hilton 2018，[Computing Apparent Planetary Magnitudes
 
 ## 紫微星名本地研究预览
 
-- 本地安命历法开发依赖 `lunar-python==1.4.8`，作者 6tail，MIT，来源 <https://github.com/6tail/lunar-python>。通过开发依赖安装，不由正式 AstrBot 入口导入。
+- 安命历法使用 `lunar-python==1.4.8`，作者 6tail，MIT，来源 <https://github.com/6tail/lunar-python>。原研究预览使用开发依赖；新增 `/紫微星图` 后列入运行依赖，在该图计算时按需导入。
 - 太阳 V 星等基准与距离关系参考 [NRAO 教学资料](https://www.aoc.nrao.edu/~smyers/courses/astro01/L23.html)。月球相位光度参考 Krisciunas & Schaefer 1991, PASP 103, 1033–1039，[论文式 9](https://articles.adsabs.harvard.edu/pdf/1991PASP..103.1033K)，另作观测距离的平方反比修正。独立实现公式，保留估算性质，未将论文或书籍全文纳入插件。
 - 星名和 HIP 的核对参考 Stellarium 中国星空目录；《晋书》《紫微斗数全书》等古籍只作明确注明版本的研究依据。书页核对与候选证据见 [文献核对](docs/ZIWEI_LITERATURE.md)。研究资料保存在忽略目录，不随插件打包。
 
 - 传统安星研究核验使用 [iztro 2.6.1](https://github.com/SylarLong/iztro)，MIT，仅在被忽略的本地研究目录安装，不打包或新增运行依赖。独立计算输出快照记录版本、来源与 npm 完整性值，见 [规则对照](docs/ZIWEI_RULE_COMPARISON.md)。
+
+## Linear 紫微界面字体
+
+- **AstroInter.ttf**：官方 [Inter 4.1](https://github.com/rsms/inter/releases/tag/v4.1) Regular 的裁剪、重命名派生字体，内部家族名 `AstroUISans`，SIL OFL 1.1。保留版权与许可于字体元数据及 `assets/fonts/LINEAR_LICENSE.txt`，固定源版本、原始及输出 SHA-256 见 `assets/fonts/linear_provenance.json`。重建脚本为 `tools/build_linear_font.py`，仅构建使用既有 fontTools 开发依赖。
+- Inter 不含汉字；中文由既有 **AstroSans.otf** 提供字形，统一采用无衬线展示，不依赖系统字体。新紫微界面不使用旧研究预览的 AstroSerif。
