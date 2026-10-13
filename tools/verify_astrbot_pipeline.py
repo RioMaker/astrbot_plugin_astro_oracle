@@ -158,6 +158,7 @@ async def run_case(source, content, ready=True, enabled=True, handler_name="star
             assert "准备紫微星图资源" in text_messages[0]
         elif content in {"help", "帮助", "20250", "help 北京"} and enabled:
             assert "/紫微星图" in text_messages[0]
+            assert "/紫薇星图" in text_messages[0]
         if not enabled:
             assert "紫微星图功能当前已关闭" in text_messages[0]
     return {

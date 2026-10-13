@@ -258,7 +258,9 @@ def test_ziwei_command_is_independent_and_both_handlers_are_plain_coroutines(ada
     old_names = {plugin.star_chart.command_name} | plugin.star_chart.command_aliases
     new_names = {plugin.ziwei_chart.command_name} | plugin.ziwei_chart.command_aliases
     assert old_names == {"星图", "xingtu", "xt", "star"}
-    assert new_names == {"紫微星图"} and old_names.isdisjoint(new_names)
+    assert new_names == {"紫微星图", "紫薇星图"} and old_names.isdisjoint(new_names)
+    assert plugin.ziwei_chart.command_name == "紫微星图"
+    assert plugin.ziwei_chart.command_aliases == {"紫薇星图"}
     for handler in (plugin.star_chart, plugin.ziwei_chart):
         assert inspect.iscoroutinefunction(handler)
         assert not inspect.isasyncgenfunction(handler)
@@ -274,6 +276,7 @@ def test_ziwei_help_and_syntax_errors_use_own_command_without_preparing_data(ada
     replies = asyncio.run(consume(plugin, event, content, "ziwei_chart"))
     assert event.stopped and len(replies) == 1
     assert "/紫微星图" in replies[0] and "/星图" not in replies[0]
+    assert "/紫薇星图" in replies[0]
     assert not plugin._charts.calls and not plugin._charts.ziwei_calls
     assert plugin.context.sent[0][0] == event.unified_msg_origin
     if content in {"help", "帮助"}:
@@ -381,3 +384,22 @@ def test_ziwei_resource_failure_preserves_safe_source_message(adapter):
     assert "private proxy" not in replies[1]
     assert not plugin._charts.calls
     assert all(not hasattr(c, "png") for _, chain in plugin.context.sent for c in chain)
+
+
+@pytest.mark.parametrize("prefix", ["紫微星图", "紫薇星图"])
+def test_both_ziwei_spellings_select_one_handler_and_the_same_service(adapter, prefix):
+    module, _ = adapter
+    plugin = module.AstroOraclePlugin(Context(), {})
+    handlers = [
+        handler
+        for handler in (plugin.star_chart, plugin.ziwei_chart)
+        if prefix == handler.command_name or prefix in handler.command_aliases
+    ]
+    assert handlers == [plugin.ziwei_chart]
+    event = Event()
+    asyncio.run(handlers[0](event, "北京 20261012200000"))
+    assert event.stopped and not plugin._charts.calls
+    request, _, _ = plugin._charts.ziwei_calls[0]
+    assert request.place_text == "北京" and request.time_text == "20261012200000"
+    assert len(plugin.context.sent) == 1
+    assert plugin.context.sent[0][1][0].png.startswith(b"ziwei-png-")

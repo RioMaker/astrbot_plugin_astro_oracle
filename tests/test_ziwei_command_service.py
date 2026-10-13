@@ -25,7 +25,7 @@ NOW = datetime(2026, 10, 12, 12, tzinfo=timezone.utc)
 def test_parsed_request_keeps_timezone_and_old_preview_prefixes():
     request = parse_request("北京 20261012200000 tz=UTC+08:00")
     assert parse_preview_request(request) is request
-    for prefix in ("/紫微星图", "/星图", "/xingtu", "/xt", "/star"):
+    for prefix in ("/紫微星图", "/紫薇星图", "/星图", "/xingtu", "/xt", "/star"):
         assert parse_preview_request(f"{prefix} 北京 20261012200000 tz=UTC+08:00") == request
     with pytest.raises(ValueError, match="不处理帮助指令"):
         parse_preview_request(parse_request("help"))

@@ -259,6 +259,8 @@ def render_ziwei_linear(data, comparison):
 
 
 def generate_ziwei_png(sky, request, settings, now):
+    from .ziwei_atlas import render_ziwei_atlas
+
     data = compute_ziwei(sky, request, settings, now)
     comparison = build_correspondence(data)
-    return render_ziwei_linear(data, comparison)[0]
+    return render_ziwei_atlas(data, comparison)[0]

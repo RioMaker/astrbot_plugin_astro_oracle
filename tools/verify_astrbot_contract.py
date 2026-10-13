@@ -84,7 +84,7 @@ def main():
         registrations[handler] = {"name": name, "aliases": sorted(aliases)}
     assert registrations == {
         "star_chart": {"name": "星图", "aliases": ["star", "xingtu", "xt"]},
-        "ziwei_chart": {"name": "紫微星图", "aliases": []},
+        "ziwei_chart": {"name": "紫微星图", "aliases": ["紫薇星图"]},
     }
     inputs = [
         "",
@@ -102,7 +102,7 @@ def main():
     cases = []
     for handler, prefixes in (
         ("star_chart", ("星图", "xingtu", "xt", "star")),
-        ("ziwei_chart", ("紫微星图",)),
+        ("ziwei_chart", ("紫微星图", "紫薇星图")),
     ):
         for prefix in prefixes:
             for content in inputs:
@@ -119,7 +119,10 @@ def main():
         "astro_oracle help",
         "紫微星图片",
         "紫微星图help",
+        "紫薇星图片",
+        "紫薇星图help",
         "星图紫微",
+        "星图紫薇",
     )
     for text in unrelated:
         for command in commands.values():

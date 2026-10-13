@@ -20,10 +20,10 @@ PLUGIN_NAME = "astrbot_plugin_astro_oracle"
 def ziwei_help(settings):
     return (
         "紫微星图：同一时间地点的传统静态命盘与真实天体位置对照。\n"
-        "/紫微星图 — 当前时刻与默认地点\n"
-        "/紫微星图 北京 20261012200000 — 指定公历时间与地点\n"
+        "/紫薇星图 与 /紫微星图 完全等效 — 当前时刻与默认地点\n"
+        "/紫薇星图 北京 20261012200000 — 指定公历时间与地点\n"
         "/紫微星图 30.25°N 120.5°E 20250102 — 指定经纬度\n"
-        "/紫微星图 help 或 /紫微星图 帮助 — 查看帮助\n"
+        "/紫薇星图 help 或 /紫微星图 帮助 — 查看帮助\n"
         "时间与地点可交换顺序；支持年、年月、日期以及具体到秒的紧凑时间。\n"
         f"默认地点：{settings.default_place}；缺时分秒按 {settings.default_time} 补齐。\n"
         f"城市采用当地时区，经纬度默认 {settings.coordinate_timezone}；可在末尾加 tz=...。\n"
@@ -33,7 +33,10 @@ def ziwei_help(settings):
 
 def ziwei_error_text(error):
     """共用参数解析器的错误文案只引导到当前紫微指令。"""
-    return f"{str(error).replace('/星图', '/紫微星图')}\n使用 /紫微星图 help 查看帮助。"
+    return (
+        f"{str(error).replace('/星图', '/紫微星图')}\n"
+        "使用 /紫薇星图 help 或 /紫微星图 help 查看帮助。"
+    )
 
 
 class AstroOraclePlugin(Star):
@@ -107,9 +110,9 @@ class AstroOraclePlugin(Star):
         # 图片仅在内存中生成；通过固定的会话路由发送，避免异步期间读取共享 event。
         await self.context.send_message(origin, MessageChain([Image.fromBytes(png)]))
 
-    @filter.command("紫微星图", alias=set())
+    @filter.command("紫微星图", alias={"紫薇星图"})
     async def ziwei_chart(self, event: AstrMessageEvent, content: GreedyStr):
-        """传统命盘与真实天体位置对照；help/帮助及时间地点参数。"""
+        """紫微星图／紫薇星图：传统命盘与真实天体对照；help/帮助及时间地点。"""
         origin = str(event.unified_msg_origin)
         now = datetime.now(timezone.utc)
         event.stop_event()

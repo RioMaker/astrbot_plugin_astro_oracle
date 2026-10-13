@@ -92,7 +92,14 @@ def parse_preview_request(content):
     else:
         if isinstance(content, str):
             parts = content.split(maxsplit=1)
-            if parts and parts[0].casefold() in {"/紫微星图", "/星图", "/xingtu", "/xt", "/star"}:
+            if parts and parts[0].casefold() in {
+                "/紫微星图",
+                "/紫薇星图",
+                "/星图",
+                "/xingtu",
+                "/xt",
+                "/star",
+            }:
                 content = parts[1] if len(parts) > 1 else ""
         request = parse_request(content)
     if request.action == "help":
