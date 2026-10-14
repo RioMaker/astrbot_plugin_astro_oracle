@@ -1,7 +1,19 @@
 {
   "enabled": {
     "type": "bool",
-    "description": "启用星图与紫微星图指令",
+    "description": "启用星图、紫微星图及其 AI 工具",
+    "default": true
+  },
+  "record_ziwei_queries": {
+    "type": "bool",
+    "description": "保存 QQ 群成员指定日期的紫微排盘记录",
+    "hint": "记录群、调用者、输入参数、实际时间地点及结果状态；指令与 AI 工具共用。无日期的当前查询、私聊、非 QQ 平台不记录。关闭后不新增记录，已有记录保留。",
+    "default": true
+  },
+  "enable_ziwei_llm_tool": {
+    "type": "bool",
+    "description": "允许 AI 调用紫微排盘工具",
+    "hint": "注册 generate_ziwei_chart，AI 可按用户请求调用并向当前会话发送图片。还需所用模型支持工具调用，且当前人格允许使用该工具。",
     "default": true
   },
   "default_place": {

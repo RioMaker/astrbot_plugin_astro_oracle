@@ -56,11 +56,23 @@ class ChartService:
 
         return generate_ziwei_png(self._engine(), request, settings, now)
 
+    def _generate_ziwei_result(self, request, settings, now):
+        from .ziwei_linear import generate_ziwei_result
+
+        return generate_ziwei_result(self._engine(), request, settings, now)
+
     async def generate_ziwei(self, request, settings, now):
         if self._closed:
             raise RuntimeError("紫微星图服务已停止，请重载插件。")
         return await asyncio.get_running_loop().run_in_executor(
             self._worker, self._generate_ziwei, request, settings, now
+        )
+
+    async def generate_ziwei_result(self, request, settings, now):
+        if self._closed:
+            raise RuntimeError("紫微星图服务已停止，请重载插件。")
+        return await asyncio.get_running_loop().run_in_executor(
+            self._worker, self._generate_ziwei_result, request, settings, now
         )
 
     def _close(self):

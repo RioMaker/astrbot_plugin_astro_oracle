@@ -51,11 +51,13 @@ def adapter(monkeypatch, tmp_path):
 
     api = sys.modules["astrbot.api"]
     api.AstrBotConfig = dict
-    api.logger = types.SimpleNamespace(exception=lambda *args: None)
+    api.logger = types.SimpleNamespace(exception=lambda *args: None, error=lambda *args: None)
     event_api = sys.modules["astrbot.api.event"]
     event_api.AstrMessageEvent = object
     event_api.MessageChain = lambda chain: types.SimpleNamespace(chain=chain)
-    event_api.filter = types.SimpleNamespace(command=command)
+    event_api.filter = types.SimpleNamespace(
+        command=command, llm_tool=lambda name: lambda handler: handler
+    )
     comp_api = sys.modules["astrbot.api.message_components"]
     comp_api.Image = comp_api.Plain = Component
     sys.modules["astrbot.api.star"].Star = Star
@@ -95,6 +97,12 @@ def adapter(monkeypatch, tmp_path):
                 raise self.error
             return b"ziwei-png-fixture-for-routing-only"
 
+        async def generate_ziwei_result(self, request, settings, now):
+            return types.SimpleNamespace(
+                png=await self.generate_ziwei(request, settings, now),
+                metadata={"timezone": "Asia/Shanghai", "epoch_utc": "2026-10-14T12:00:00+00:00"},
+            )
+
         async def close(self):
             self.closed = True
             self.close_count += 1
@@ -113,6 +121,9 @@ class Event:
 
     def stop_event(self):
         self.stopped = True
+
+    def get_platform_name(self):
+        return "test"
 
     def plain_result(self, value):
         return value

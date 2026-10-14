@@ -11,6 +11,7 @@ from .ziwei_chart import MAJOR_ORDER, compute_ziwei
 from .ziwei_correspondence import build_correspondence
 from .ziwei_linear_theme import ACCENT, BG, INK, LINE, MUTED, box, rule, text
 from .ziwei_names import CENTER, PANEL, RADIUS, name_layout
+from .ziwei_result import ZiweiChartResult, result_metadata
 
 PROFILE = "linear-ziwei-observer-v2"
 WIDTH, HEIGHT = 2440, 1810
@@ -258,9 +259,15 @@ def render_ziwei_linear(data, comparison):
     return output.getvalue(), {"traditional": traditional, "real_names": real, "links": links}
 
 
-def generate_ziwei_png(sky, request, settings, now):
+def generate_ziwei_result(sky, request, settings, now):
+    from .ziwei_atlas import PROFILE as CHART_PROFILE
     from .ziwei_atlas import render_ziwei_atlas
 
     data = compute_ziwei(sky, request, settings, now)
     comparison = build_correspondence(data)
-    return render_ziwei_atlas(data, comparison)[0]
+    png, _ = render_ziwei_atlas(data, comparison)
+    return ZiweiChartResult(png, result_metadata(data, comparison, CHART_PROFILE))
+
+
+def generate_ziwei_png(sky, request, settings, now):
+    return generate_ziwei_result(sky, request, settings, now).png

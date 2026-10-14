@@ -17,6 +17,7 @@ import httpx
 
 from local_core.bot_commands import ChartSettings, help_text, parse_request
 from local_core.resources import ResourceDownloadError
+from local_core.ziwei_invocation import capture_qq_caller
 
 ROOT = Path(__file__).resolve().parents[1]
 REFERENCE = ROOT / "data" / "astrbot-reference"
@@ -65,6 +66,7 @@ def load_function(path, name, namespace, class_name=None):
 def prepare_namespace():
     namespace = {
         "AsyncGenerator": AsyncGenerator,
+        "asyncio": asyncio,
         "cast": cast,
         "T": typing,
         "inspect": inspect,
@@ -79,6 +81,7 @@ def prepare_namespace():
         "parse_request": parse_request,
         "help_text": help_text,
         "ResourceDownloadError": ResourceDownloadError,
+        "capture_qq_caller": capture_qq_caller,
         "Plain": lambda text: types.SimpleNamespace(text=text),
         "Image": types.SimpleNamespace(fromBytes=lambda png: types.SimpleNamespace(png=png)),
         "logger": types.SimpleNamespace(
@@ -122,16 +125,23 @@ async def run_case(source, content, ready=True, enabled=True, handler_name="star
     async def generate_ziwei(*args):
         computed.append(args)
         service_calls.append("ziwei_chart")
-        return b"ziwei-message-routing-only; not astronomy fixture"
+        return types.SimpleNamespace(
+            png=b"ziwei-message-routing-only; not astronomy fixture", metadata={}
+        )
 
     plugin = types.SimpleNamespace(
         context=types.SimpleNamespace(send_message=send),
         config={"enabled": enabled},
         _charts=types.SimpleNamespace(
-            ready=ready, generate=generate, generate_ziwei=generate_ziwei
+            ready=ready, generate=generate, generate_ziwei_result=generate_ziwei
         ),
     )
+    if handler_name == "ziwei_chart":
+        for helper in ("_finish_ziwei_record", "_run_ziwei"):
+            function = load_function(source, helper, namespace, "AstroOraclePlugin")
+            setattr(plugin, helper, function.__get__(plugin))
     event = event_type()
+    event.get_platform_name = lambda: "test"
     event._result, event._force_stopped = None, False
     event.unified_msg_origin = "test:GroupMessage:sky"
 

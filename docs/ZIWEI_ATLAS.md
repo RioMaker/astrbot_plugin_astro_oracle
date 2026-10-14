@@ -26,6 +26,6 @@
 .\.venv\Scripts\python.exe -m tools.preview_ziwei_atlas --input '/紫薇星图 北京 20261012200000'
 ```
 
-显式预览默认写入 `data/ziwei-validation/atlas/beijing.png`，配套 JSON 包含真实数据、对应类别、宫内／星名／区域名框、区域模型含义、未放置标签的宫支，以及图片、代码、字体 SHA。AstrBot 入口调用同一渲染器，在共享计算线程返回内存图片，不保存用户查询。
+显式预览默认写入 `data/ziwei-validation/atlas/beijing.png`，配套 JSON 包含真实数据、对应类别、宫内／星名／区域名框、区域模型含义、未放置标签的宫支，以及图片、代码、字体 SHA。AstrBot 指令和 LLM 工具调用同一渲染器，在共享计算线程返回内存图片；QQ 群显式日期请求会按配置保存[调用记录](ZIWEI_CALLS.md)，图片不落盘。
 
 旧 `tools.preview_ziwei_linear` 仍生成上一版无关联区对照图，便于研究比对。本轮本地图片与服务验收记录见 [验证记录](VALIDATION.md)；实际 AstrBot／OneBot／QQ 回图仍须在运行端联合验收。
